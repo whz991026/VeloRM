@@ -25,7 +25,6 @@ gene.relative.velocity.estimates(
   fit.quantile = NULL,
   diagonal.quantiles = FALSE,
   show.gene = NULL,
-  do.par = TRUE,
   cell.dist = NULL,
   emat.size = NULL,
   nmat.size = NULL,
@@ -34,7 +33,10 @@ gene.relative.velocity.estimates(
   expression.gradient = NULL,
   residual.gradient = NULL,
   n.cores = 1,
-  verbose = TRUE
+  verbose = TRUE,
+  nrows = 2,
+  low_color = "#FFCC15",
+  high_color = "#9933FF"
 )
 }
 \arguments{
@@ -110,8 +112,6 @@ gene.relative.velocity.estimates(
 
 \item{show.gene}{an optional name of a gene for which the velocity estimation details should be shown (instead of estimating all velocities)}
 
-\item{do.par}{whether the graphical device parameters should be reset as part of show.gene (default=TRUE)}
-
 \item{cell.dist}{\itemize{
 \item cell distance to use in cell kNN pooling calculations
 }}
@@ -147,6 +147,12 @@ gene.relative.velocity.estimates(
 \item{verbose}{\itemize{
 \item output messages about progress
 }}
+
+\item{nrows}{the hyper-parameter for show gene plot the number of rows}
+
+\item{low_color}{the hyper-parameter for show gene low color}
+
+\item{high_color}{the hyper-parameter for show gene high color}
 }
 \value{
 a list with velocity results, including the current normalized expression state ($current), projected ($projected) over a certain time ($deltaT), unscaled transcriptional change ($deltaE), fit results ($gamma, $ko, $sfit if spanning reads were used), optional cell pooling parameters ($cellKNN, $kCells), kNN-convolved normalized matrices (conv.nmat.norm and conv.emat.norm), library scale ($mult)

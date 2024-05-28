@@ -20,7 +20,6 @@
 ##' @param fit.quantile perform gamma fit on a top/bottom quantiles of expression magnitudes
 ##' @param diagonal.quantiles whether extreme quantiles should be computed diagonally
 ##' @param show.gene an optional name of a gene for which the velocity estimation details should be shown (instead of estimating all velocities)
-##' @param do.par whether the graphical device parameters should be reset as part of show.gene (default=TRUE)
 ##' @param cell.dist - cell distance to use in cell kNN pooling calculations
 ##' @param emat.size - pre-calculated cell sizes for the emat (spliced) matrix
 ##' @param nmat.size - pre-calculated cell sizes for the nmat (unspliced) matrix
@@ -30,10 +29,14 @@
 ##' @param residual.gradient - color palette used to show the u residuals in show.gene function
 ##' @param n.cores - number of cores to use
 ##' @param verbose - output messages about progress
+##' @param nrows the hyper-parameter for show gene plot the number of rows
+##' @param low_color the hyper-parameter for show gene low color
+##' @param high_color the hyper-parameter for show gene high color
 ##'
 ##' @import MASS
 ##' @import Matrix
 ##' @import rjags
+##' @import cowplot
 ##' @importFrom methods as
 ##' @importFrom stats as.dist coef dist lm median na.omit predict quantile resid sd
 ##' @importFrom graphics abline box lines par
@@ -62,9 +65,10 @@ gene.relative.velocity.estimates <- function (
         mult = 1000, min.nmat.smat.correlation = 0.05, min.nmat.emat.correlation = 0.05,
         min.nmat.emat.slope = 0.05, zero.offset = FALSE, deltaT2 = 1,delta_model="model 2",
         fit.quantile = NULL, diagonal.quantiles = FALSE, show.gene = NULL,
-        do.par = TRUE, cell.dist = NULL, emat.size = NULL, nmat.size = NULL,
+        cell.dist = NULL, emat.size = NULL, nmat.size = NULL,
         cell.emb = NULL, cell.colors = NULL, expression.gradient = NULL,
-        residual.gradient = NULL, n.cores = 1, verbose = TRUE)
+        residual.gradient = NULL, n.cores = 1, verbose = TRUE,nrows=2,
+        low_color="#FFCC15",high_color="#9933FF")
 {
 
   if (!all(colnames(emat) == colnames(nmat)))
@@ -225,22 +229,33 @@ gene.relative.velocity.estimates <- function (
     gn <- show.gene
     if (!is.null(cell.emb)) {
       cc <- intersect(rownames(cell.emb), colnames(conv.emat.norm))
-      if (do.par) {
-        par(mfrow = c(1, 4), mar = c(2.5, 2.5, 2.5, 0.5),
-            mgp = c(1.5, 0.65, 0), cex = 0.85)
-      }
-      plot(cell.emb[cc, ], pch = 21, col = ac(1, alpha = 0.2),
-           bg = val2col(conv.emat.norm[gn, cc], gradientPalette = expression.gradient),
-           cex = 0.8, xlab = "", ylab = "", main = paste(gn,
-                                                         "s"), axes = F)
-      box()
-      plot(cell.emb[cc, ], pch = 21, col = ac(1, alpha = 0.2),
-           bg = val2col(conv.nmat.norm[gn, cc], gradientPalette = expression.gradient),
-           cex = 0.8, xlab = "", ylab = "", main = paste(gn,
-                                                         "u"), axes = F)
-      box()
+      
+      data.frame.s.ggplot2 <- as.data.frame(cell.emb[cc, 1])
+      data.frame.s.ggplot2$PC1 <- cell.emb[cc, 1]
+      data.frame.s.ggplot2$PC2 <- cell.emb[cc, 2]
+      data.frame.s.ggplot2$color <- conv.emat.norm[gn, cc]
+      data.frame.s.ggplot2 <- data.frame.s.ggplot2[,c("PC1","PC2","color")]
+      
+      colnames(data.frame.s.ggplot2) <- c("PC1","PC2","color")
+      spliced.plot <- ggplot(data.frame.s.ggplot2)+
+        aes(x = .data$PC1, y = .data$PC2, color = .data$color) + 
+        geom_point(alpha=1) + labs(x = "PC1",y = "PC2",title = paste0(show.gene," s"),colour="s")+ 
+        theme(plot.title = element_text(size=12,hjust=0.5))+
+        scale_color_gradient(low = low_color, high = high_color)
+      
+      data.frame.u.ggplot2 <- as.data.frame(cell.emb[cc, 1])
+      data.frame.u.ggplot2$PC1 <- cell.emb[cc, 1]
+      data.frame.u.ggplot2$PC2 <- cell.emb[cc, 2]
+      data.frame.u.ggplot2$color <- conv.nmat.norm[gn, cc]
+      data.frame.u.ggplot2 <- data.frame.u.ggplot2[,c("PC1","PC2","color")]
+      colnames(data.frame.u.ggplot2) <- c("PC1","PC2","color")
+      unspliced.plot <- ggplot(data.frame.s.ggplot2)+
+        aes(x = .data$PC1, y = .data$PC2, color = .data$color) + 
+        geom_point(alpha=1) + labs(x = "PC1",y = "PC2",title = paste0(show.gene," u"),colour="u")+ 
+        theme(plot.title = element_text(size=12,hjust=0.5))+
+        scale_color_gradient(low = low_color, high = high_color)
+      
     }
-    do <- NULL
     if (!is.null(smat)) {
       df <- data.frame(n = (conv.nmat.norm[gn, steady.state.cells]),
                        e = (conv.emat.norm[gn, steady.state.cells]),
@@ -269,12 +284,13 @@ gene.relative.velocity.estimates <- function (
       cc <- intersect(names(cell.colors), rownames(df))
       cell.col[cc] <- cell.colors[cc]
     }
-    plot(df$e, df$n, pch = 21, bg = ac(cell.col, alpha = 0.3),
-         col = ac(1, alpha = 0.1), cex = 0.8, xlab = "s",
-         ylab = "u", main = paste(gn, "fit"))
-    if (!is.null(do)) {
-      abline(do, lty = 2, col = 8)
-    }
+    
+    data.frame.fit.ggplot2 <- df
+    data.frame.fit.ggplot2$PC1 <-as.numeric(df$e)
+    data.frame.fit.ggplot2$PC2 <-as.numeric(df$n)
+    data.frame.fit.ggplot2$color <- ac(cell.col, alpha = 0.3)
+    data.frame.fit.ggplot2 <- data.frame.fit.ggplot2[,c("PC1","PC2","color")]
+    
     if (!is.null(fit.quantile)) {
       if (diagonal.quantiles) {
         emax <- quantile(df$e, p = 0.99)
@@ -310,20 +326,37 @@ gene.relative.velocity.estimates <- function (
       }
     }
     df <- df[order(df$e, decreasing = T), ]
-    lines(df$e, predict(d, newdata = df), lty = 2, col = 2)
+    data.frame.fit.line.ggplot2 <- df
+    data.frame.fit.line.ggplot2$pred <-  predict(d, newdata = df)
+    data.frame.fit.line.ggplot2 <- data.frame.fit.line.ggplot2[,c("e","pred")]
+    
+    colnames(data.frame.fit.ggplot2) <- c("PC1","PC2","color")
+    colnames(data.frame.fit.line.ggplot2) <- c("e","pred")
+    fit.plot <- ggplot()+
+        geom_point(data=data.frame.fit.ggplot2,aes(x = .data$PC1, y = .data$PC2,
+                  color = .data$color), alpha = 0.5) +
+      geom_line(data=data.frame.fit.line.ggplot2,aes(x = .data$e, y = .data$pred),
+                color = "red",linetype= 2)+
+      labs(x = "s",y = "u",title = paste0(show.gene," fit"))+ 
+      theme( plot.title = element_text(size=12,hjust=0.5))#legend.position =" none ",
+    
     if (!is.null(cell.emb)) {
-      plot(cell.emb[cc, ], pch = 21, col = ac(1, alpha = 0.2),
-           bg = val2col(resid(d)[cc], gradientPalette = residual.gradient),
-           cex = 0.8, xlab = "", ylab = "", main = paste(gn,
-                                                         "resid"), axes = F)
-      box()
-    }
-    if (kGenes > 1) {
-      return(invisible(geneKNN))
-    }
-    else {
-      return(1)
-    }
+      data.frame.resid.ggplot2 <- as.data.frame(cell.emb[cc, 1])
+      data.frame.resid.ggplot2$PC1 <- cell.emb[cc, 1]
+      data.frame.resid.ggplot2$PC2 <- cell.emb[cc, 2]
+      data.frame.resid.ggplot2$color <- resid(d)[cc]
+      data.frame.resid.ggplot2 <- data.frame.resid.ggplot2[, c("PC1","PC2","color")]
+      colnames(data.frame.resid.ggplot2) <- c("PC1","PC2","color")
+      resid.plot <- ggplot(data.frame.resid.ggplot2)+
+        aes(x = .data$PC1, y = .data$PC2, color = .data$color) + 
+        geom_point(alpha=1) + labs(x = "PC1",y = "PC2",title = paste0(show.gene," resid"),colour="resid")+ 
+        theme(plot.title = element_text(size=12,hjust=0.5))+
+        scale_color_gradient(low = low_color, high = high_color)
+      
+      combine_plot <- cowplot::plot_grid(spliced.plot, unspliced.plot, fit.plot, 
+                                         resid.plot, nrow=nrows,labels = LETTERS[1:4])#spliced.plot, unspliced.plot,
+      return(combine_plot)
+      } else{return(fit.plot)}
   }
   cat("fitting gamma coefficients ... ")
   if (is.null(old.fit)) {

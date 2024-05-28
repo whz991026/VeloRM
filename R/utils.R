@@ -360,14 +360,17 @@ filter.genes.by.cluster.expression <- function(emat,clusters,min.max.cluster.ave
 #' @param iteration the number of step
 #' @param scale scale the density or not "linear" or "log"
 #' @param log_unit the hyper parameter of the log scale
-#'
+#' @param low_color the hyper-parameter for show gene low color
+#' @param high_color the hyper-parameter for show gene high color
+#' 
 #' @import ggplot2
 #' @importFrom stats density 
 #' @importFrom rlang .data
 #' @return a data frame of the plot
 #' @export
 #'
-diffusion_density_plot <- function(emb,tp,forward=TRUE,iteration=1000,scale="linear",log_unit=1){
+diffusion_density_plot <- function(emb,tp,forward=TRUE,iteration=1000,scale="linear",
+                                   log_unit=1e-5,low_color="#FFCC15",high_color="#9933FF"){
   ccells <- intersect(rownames(emb),rownames(tp));
   emb <- emb[ccells,];tp <- tp[ccells,ccells]
   
@@ -388,11 +391,13 @@ diffusion_density_plot <- function(emb,tp,forward=TRUE,iteration=1000,scale="lin
   }
   cat("done\n");
   
-  cp_summary <- colSums(cp)/sum(colSums(cp))
+  
   if (scale=="log"){
+    cp_summary <- colSums(cp)/sum(colSums(cp))
     cp_summary <- log(cp_summary+log_unit)
   } 
   if (scale=="linear"){
+    cp_summary <- colSums(cp)/sum(colSums(cp))
     cp_summary <- cp_summary
   } 
   
@@ -408,7 +413,9 @@ diffusion_density_plot <- function(emb,tp,forward=TRUE,iteration=1000,scale="lin
   polot_ggplot2 <- ggplot(data.frame.plot)+
     aes(x = .data$dim1, y = .data$dim2, color = .data$density) + 
     geom_point() +
-    scale_color_gradient(low = "#FFCC15", high = "#9933FF")
+    scale_color_gradient(low = low_color, high = high_color)
   
   polot_ggplot2
 }
+
+

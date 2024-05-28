@@ -10,7 +10,9 @@ diffusion_density_plot(
   forward = TRUE,
   iteration = 1000,
   scale = "linear",
-  log_unit = 1
+  log_unit = 1e-05,
+  low_color = "#FFCC15",
+  high_color = "#9933FF"
 )
 }
 \arguments{
@@ -25,6 +27,10 @@ diffusion_density_plot(
 \item{scale}{scale the density or not "linear" or "log"}
 
 \item{log_unit}{the hyper parameter of the log scale}
+
+\item{low_color}{the hyper-parameter for show gene low color}
+
+\item{high_color}{the hyper-parameter for show gene high color}
 }
 \value{
 a data frame of the plot

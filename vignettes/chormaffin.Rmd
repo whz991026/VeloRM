@@ -20,7 +20,7 @@ It shows how to estimate gene-relative velocity (with different pooling options)
 
 Load the velocyto package:
 ```{r}
-library(velocyto.r.mine4)
+library(velocyto.r.mine5)
 ```
 
 Load the data and genome annotations:
@@ -88,12 +88,14 @@ rvel.qf <- gene.relative.velocity.estimates(emat,nmat,deltaT=1,kCells = 5,fit.qu
 
 We visualize the velocities by projecting observed and extrapolated cells onto the first 5 PCs:
 ```{r fig.width=8, fig.height=8}
-pca.velocity.plot(rvel.qf,nPcs=5,plot.cols=2,cell.colors=ac(cell.colors,alpha=0.7),cex=1.2,pcount=0.1,pc.multipliers=c(1,-1,-1,-1,-1))
+res <- pca.velocity.plot(rvel.qf,nPcs=5,plot.cols=2,cell.colors=ac(cell.colors,alpha=0.7),cex=1.2,pcount=0.1,pc.multipliers=c(1,-1,-1,-1,-1))
+
+res[[1]]
 ```
 
 
 Fitting of individual genes can be visualized using "show.gene" option. To save time, we'll pass previously-calculated velocity (rvel.qf) to save calculation time:
-```{r fig.width=8,fig.height=2.2}
+```{r}
 # define custom pallet for expression magnitude
 gene.relative.velocity.estimates(emat,nmat, kCells = 5,fit.quantile = fit.quantile,old.fit=rvel.qf,show.gene='Chga',cell.emb=emb,cell.colors=cell.colors,n.cores = 1)
 ```
@@ -109,7 +111,9 @@ rvel <- gene.relative.velocity.estimates(emat,nmat,smat=smat, kCells = 5, fit.qu
 
 We can visualize the velocity in PCA space:
 ```{r fig.width=8, fig.height=8}
-pca.velocity.plot(rvel,nPcs=5,plot.cols=2,cell.colors=ac(cell.colors,alpha=0.7),cex=1.2,pcount=0.1,pc.multipliers=c(1,-1,1,1,1))
+res <- pca.velocity.plot(rvel,nPcs=5,plot.cols=2,cell.colors=ac(cell.colors,alpha=0.7),cex=1.2,pcount=0.1,pc.multipliers=c(1,-1,1,1,1),show.grid.flow=TRUE,return.details = TRUE)
+
+res[[1]]
 ```
 
 Here we calculate the most basic version of velocity estimates, using relative gamma fit, without cell kNN smoothing (i.e. actual single-cell velocity):
@@ -163,7 +167,7 @@ y1 <- trajectory.vis(emb,x$tp,rvel,show.trajectories=TRUE,diffusion.steps=400,n.
 
 y2 <- trajectory.vis(emb,x$tp,rvel,show.trajectories=TRUE,diffusion.steps=400,n.trajectory.clusters=15,ntop.trajectories=1,show.cell.diffusion.posterior=rownames(emb)[1],cell.colors=ac(cell.colors,alpha=cell.alpha))
 
-diffusion_density_plot(emb,x$tp,forward = TRUE,2500,scale="log")
+diffusion_density_plot(emb,x$tp,forward = TRUE,2500,scale="log",log_unit = 0.1)
 diffusion_density_plot(emb,x$tp,forward = FALSE,2500)
 ```
 

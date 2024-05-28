@@ -11,7 +11,6 @@ pca.velocity.plot(
   scale = "log",
   plot.cols = min(3, nPcs - 1),
   norm.nPcs = NA,
-  do.par = T,
   pc.multipliers = NULL,
   show.grid.flow = FALSE,
   grid.n = 20,
@@ -27,6 +26,7 @@ pca.velocity.plot(
   fixed.arrow.length = FALSE,
   max.grid.arrow.length = NULL,
   n.cores = 1,
+  point.size = 3,
   ...
 )
 }
@@ -42,8 +42,6 @@ pca.velocity.plot(
 \item{plot.cols}{number of columns into which to arrange the plots}
 
 \item{norm.nPcs}{optional total number of PCs to use for velocity magnitude normalization}
-
-\item{do.par}{whether to set up graphical parameters of a plot}
 
 \item{pc.multipliers}{an optional vector multipliers for the cell PC scores (useful for reorienting the PCs)}
 
@@ -74,6 +72,8 @@ pca.velocity.plot(
 \item{max.grid.arrow.length}{limit to the size of the arrows that could be shown (when fixed.arrow.length=FALSE)}
 
 \item{n.cores}{number of cores to use in the calculations}
+
+\item{point.size}{size of the point}
 
 \item{...}{extra parameters are passed to plot() function}
 }

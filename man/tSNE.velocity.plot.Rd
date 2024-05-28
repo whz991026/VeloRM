@@ -8,7 +8,6 @@ tSNE.velocity.plot(
   vel,
   cell.colors = NULL,
   scale = "log",
-  do.par = T,
   delta.norm = TRUE,
   nPcs = 15,
   norm.nPcs = nPcs * 10,
@@ -27,6 +26,7 @@ tSNE.velocity.plot(
   ylab = "",
   n.cores = 1,
   size.norm = TRUE,
+  point.size = 3,
   ...
 )
 }
@@ -36,8 +36,6 @@ tSNE.velocity.plot(
 \item{cell.colors}{named color vector for the cells}
 
 \item{scale}{whether to rescale current/projected}
-
-\item{do.par}{whether to reset par (default=T)}
 
 \item{delta.norm}{whether to renormalize velocities following PCA projection}
 
@@ -74,6 +72,8 @@ tSNE.velocity.plot(
 \item{n.cores}{number of cores to use}
 
 \item{size.norm}{whether to re-normalize current and projected cell sizes}
+
+\item{point.size}{size of the point}
 
 \item{...}{extra parameters are passed to plot() routine.}
 }

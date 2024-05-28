@@ -1,4 +1,4 @@
-Package: velocyto.r.mine4
+Package: velocyto.r.mine5
 Title: RNA velocity estimation in R 
 Version: 0.0.0.9000
 Authors@R: 
@@ -20,7 +20,8 @@ Imports:
     igraph,
     rjags,
     ggplot2,
-    rlang
+    rlang,
+    cowplot
 Suggests: 
     knitr,
     rmarkdown

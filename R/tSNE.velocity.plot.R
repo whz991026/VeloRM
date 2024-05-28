@@ -3,7 +3,6 @@
 ##' @param vel velocity result
 ##' @param cell.colors named color vector for the cells
 ##' @param scale whether to rescale current/projected
-##' @param do.par whether to reset par (default=T)
 ##' @param delta.norm whether to renormalize velocities following PCA projection
 ##' @param nPcs number of PCs onto which project the velocities
 ##' @param norm.nPcs number of PCs to use for velocity normalization
@@ -22,19 +21,20 @@
 ##' @param ylab y axis label
 ##' @param n.cores number of cores to use
 ##' @param size.norm whether to re-normalize current and projected cell sizes
+##' @param point.size size of the point
 ##' @param ... extra parameters are passed to plot() routine.
 ##'
 ##' @import Rtsne
 ##'
 ##' @return invisible list containing embedding positions of current state (current.emb) and extrapolated states (projected.emb)
 ##' @export
-tSNE.velocity.plot <- function(vel,cell.colors=NULL,scale='log',do.par=T,
+tSNE.velocity.plot <- function(vel,cell.colors=NULL,scale='log',
                                delta.norm=TRUE, nPcs=15, norm.nPcs=nPcs*10,
                                perplexity=ncol(vel$current)/3, show.grid.flow=FALSE,
                                grid.n=20, grid.sd=NULL, min.grid.cell.mass=1,
                                pcount=0.1, verbose=TRUE, min.arrow.median.ratio=1/10,
                                max.arrow.quantile=0.9, arrow.scale=1, arrow.lwd=1,
-                               xlab="", ylab="", n.cores=1, size.norm=TRUE,
+                               xlab="", ylab="", n.cores=1, size.norm=TRUE,point.size=3,
                                ...) {
   x0 <- vel$current;
   x1 <- vel$projected;
@@ -94,8 +94,14 @@ tSNE.velocity.plot <- function(vel,cell.colors=NULL,scale='log',do.par=T,
   delta.emb <- delta.emb/asize * pmin(asize,2*quantile(asize,p=max.arrow.quantile))*arrow.scale;
   delta.emb[no.arrow,] <- 0;
   cat("done\n")
-  if(do.par) par(mfrow=c(1,1), mar = c(3.5,3.5,2.5,1.5), mgp = c(2,0.65,0), cex = 0.85);
-  plot(x0.emb,bg=cell.colors[rownames(x0.emb)],pch=21,col=ac(1,alpha=0.3),xlab=ylab,ylab=xlab, ... ); box();
+  
+  point_data.frame <- as.data.frame(x0.emb[,1])
+  point_data.frame$PC1 <- x0.emb[,1]
+  point_data.frame$PC2 <- x0.emb[,2]
+  point_data.frame$color <- cell.colors[rownames(x0.emb)]
+  point_data.frame <- point_data.frame[,c("PC1","PC2","color")]
+  
+  
 
 
   if(show.grid.flow) { # show grid summary of the arrows
@@ -115,7 +121,7 @@ tSNE.velocity.plot <- function(vel,cell.colors=NULL,scale='log',do.par=T,
     if(is.null(grid.sd)) {
       grid.sd <- sqrt((gx[2]-gx[1])^2 + (gy[2]-gy[1])^2)/2
     }
-    ginfo <- lapply(gx,function(x) {
+    garrows <-  do.call(rbind,lapply(gx,function(x) {
       # cell distances (rows-cells,columsn - grid points)
       cd <- sqrt(outer(x0.emb[,2],-gy,'+')^2 + (x-x0.emb[,1])^2)
       cw <- dnorm(cd,sd=grid.sd)
@@ -126,16 +132,35 @@ tSNE.velocity.plot <- function(vel,cell.colors=NULL,scale='log',do.par=T,
       gyd <- Matrix::colSums(cw*arsd$yd)/cws
 
       vg <- gw>=min.grid.cell.mass
-      if(any(vg)) {
-        suppressWarnings(arrows(rep(x,sum(vg)),gy[vg],x+gxd[vg],gy[vg]+gyd[vg],length=0.05,lwd=arrow.lwd))
-      }
-      points(rep(x,length(gy)),gy,pch='.')
-    })
+      cbind(rep(x,sum(vg)),gy[vg],x+gxd[vg],gy[vg]+gyd[vg])
+  
+    }))
+    colnames(garrows) <- c('x0','y0','x1','y1')
+    plot.ggplot <- ggplot() +
+      geom_point(data=point_data.frame, aes(x=.data$PC1, y=.data$PC2, 
+                                            color=.data$color), alpha=1,size=point.size) + 
+      labs(x="PC1", y="PC2", 
+           title="PC1 vs pc2") + 
+      theme(legend.position="none", plot.title=element_text(size=12,hjust=0.5)) + 
+      geom_segment(data=garrows, aes(x=.data$x0, y=.data$y0, xend=.data$x1, yend=.data$y1), 
+                   arrow=arrow(length=unit(0.05, "inches")), size=arrow.lwd)
     cat("done\n")
   } else {
     # draw individual arrows
-    suppressWarnings(arrows(x0.emb[,1],x0.emb[,2],x0.emb[,1]+delta.emb[,1],x0.emb[,2]+delta.emb[,2],length=0.05,lwd=arrow.lwd))
+    garrows <- as.data.frame(x0.emb[,1])
+    garrows$x0 <- x0.emb[,1]
+    garrows$y0 <- x0.emb[,2]
+    garrows$x1 <- x0.emb[,1]+delta.emb[,1]
+    garrows$y1 <- x0.emb[,2]+delta.emb[,2]
+    plot.ggplot <- ggplot() +
+      geom_point(data=point_data.frame, aes(x=.data$PC1, y=.data$PC2, 
+                                            color=.data$color), alpha=1,size=point.size) + 
+      labs(x="PC1", y="PC2", 
+           title="PC1 vs pc2") + 
+      theme(legend.position="none", plot.title=element_text(size=12,hjust=0.5)) + 
+      geom_segment(data=garrows, aes(x=.data$x0, y=.data$y0, xend=.data$x1, yend=.data$y1), 
+                   arrow=arrow(length=unit(0.05, "inches")), size=arrow.lwd)
   }
 
-  return(invisible(list(current.emb=x0.emb,projected.emb=x1.emb+delta.emb)))
+  return(list(plot.ggplot,invisible(list(current.emb=x0.emb,projected.emb=x1.emb+delta.emb))))
 }
