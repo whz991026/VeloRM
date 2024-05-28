@@ -1,0 +1,27 @@
+Package: velocyto.r.mine4
+Title: RNA velocity estimation in R 
+Version: 0.0.0.9000
+Authors@R: 
+    person("Haozhe", "Wang", , "Haozhe.Wang17@student.xjtlu.edu.cn", role = c("aut", "cre"))
+Description: Provides basic routines for estimation of gene-specific transcriptional derivatives and visualization of the resulting velocity patterns.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1
+Imports:
+    Matrix,
+    parallel,
+    MASS,
+    methods,
+    pcaMethods,
+    Rtsne,
+    cluster,
+    abind,
+    igraph,
+    rjags,
+    ggplot2,
+    rlang
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
