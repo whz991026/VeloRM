@@ -1,19 +1,17 @@
 #' trajectory visualization 
 #' @param emb embedding to be used for projection
 #' @param tp transition probability 
-#' @param vel velocity result
+#' @param current current matrix
 #' @param emb_local_influence whether consider the emb influence
 #' @param local_influence_prob the proportion of the influence
 #' @param sigma_d the hyper-parameter of local influence
 #' @param cell.colors name vector of cell colors
-#' @param show.cell.arrows show detailed velocity projection for the specified cell
 #' @param show.cell.trajectories show trajectories for a specified cell
 #' @param show.trajectories show top median diffusion trajectories
 #' @param show.all.trajectories show all diffusion paths (messy)
 #' @param arrow.lwd arrow line width
 #' @param xlab x axis label
 #' @param ylab y axls label
-#' @param do.par whether to reset plotting parameters
 #' @param n.cores number of cores to use in calculations
 #' @param cell.border.alpha transparency for the cell border
 #' @param show.cell.diffusion.posterior show diffusion posterior of a given cell
@@ -24,32 +22,46 @@
 #' @param trajectory.spline.shape shape parameter for smoothing median cell trajectories (default=1)
 #' @param n.trajectory.clusters number of trajectory clusters to show median paths for (when show.trajectories=TRUE)
 #' @param ... extra parameters passed to plot() function
-#'
+#' @param point.size size of the point
+#' @param low_color the hyper-parameter for show site low color
+#' @param high_color the hyper-parameter for show site high color
+#' @param arrow_size size of arrow
+#' 
+#' @importFrom graphics plot.new 
+#' @importFrom grDevices dev.off
 #' @export
 #'
-trajectory.vis <- function( emb,tp,vel,emb_local_influence=FALSE,local_influence_prob=0.2,
-                            sigma_d=NA,arrow.scale=1,show.cell.arrows=NULL,
+trajectory.vis <- function( emb,tp,current,emb_local_influence=FALSE,local_influence_prob=0.2,
+                            sigma_d=NA,arrow.scale=1,
                             show.cell.trajectories=NULL,cell.colors=NULL,
                             show.trajectories=FALSE,arrow.lwd=1,
                             show.all.trajectories=FALSE,n.cores=1,
                             show.cell.diffusion.posterior=NULL, xlab="", ylab="",
                             show.grid.flow=FALSE, diffusion.steps=10,
-                            cell.border.alpha=0.5,do.par=TRUE,
+                            cell.border.alpha=0.5,
                             ntop.trajectories=1, trajectory.spline.shape=1,
-                            n.trajectory.clusters=10,...){
-  if(do.par) par(mfrow=c(1,1), mar = c(3.5,3.5,2.5,1.5), mgp = c(2,0.65,0), cex = 0.85);
+                            n.trajectory.clusters=10,point.size=3,
+                            low_color="#FFCC15",high_color="#9933FF",
+                            arrow_size=0.1,...){
   if (is.null(show.cell.diffusion.posterior)){
     celcol <- cell.colors[rownames(emb)] 
   } else{
     celcol <- "white"
   }
   
-  plot(emb,bg=celcol,pch=21,col=ac(1,alpha=cell.border.alpha), xlab=xlab, ylab=ylab, ...);
+ 
   
   
-  em <- vel$current; 
+  em <- current; 
   ccells <- intersect(intersect(rownames(emb),colnames(em)),rownames(tp));
   em <- em[,ccells]; emb <- emb[ccells,];tp <- tp[ccells,ccells]
+  
+  point.data.frame <- as.data.frame(emb[ccells,1])
+  point.data.frame$PC1 <- emb[ccells,1]
+  point.data.frame$PC2 <- emb[ccells,2]
+  point.data.frame$color <- celcol[ccells]
+  point.data.frame <- point.data.frame[,c("PC1","PC2","color")]
+  
   
   if(emb_local_influence==TRUE){
     cat("re-calculate the transition probability ...")
@@ -86,24 +98,25 @@ trajectory.vis <- function( emb,tp,vel,emb_local_influence=FALSE,local_influence
     }
     cat("done\n");
     # plot
-    points(emb,pch=19,col=ac(val2col(cp[show.cell.diffusion.posterior,rownames(emb)],gradient.range.quantile=1),alpha=0.5))
-    points(emb[show.cell.diffusion.posterior,1],emb[show.cell.diffusion.posterior,2],pch=3,cex=1,col=1)
-  } else if(!is.null(show.cell.arrows)) {
-    i <- match(show.cell.arrows,rownames(emb));
-    if(is.na(i)) stop(paste('specified cell',i,'is not in the embedding'))
-    # plot transition prob for a given cell
-    points(emb,pch=19,col=ac(val2col(tp[rownames(emb),show.cell.arrows],gradient.range.quantile=1),alpha=0.5))
-    points(emb[i,1],emb[i,2],pch=3,cex=1,col=1)
-    di <- t(t(emb)-emb[i,])
-    di <- di/sqrt(Matrix::rowSums(di^2))*arrow.scale; di[i,] <- 0;
-    dir <- Matrix::colSums(di*tp[,i])
-    dic <- Matrix::colSums(di*(tp[,i]>0)/sum(tp[,i]>0)); # relative to expected kNN center
-    dia <- dir-dic;
-    #browser()
-    suppressWarnings(arrows(emb[colnames(em)[i],1],emb[colnames(em)[i],2],emb[colnames(em)[i],1]+dic[1],emb[colnames(em)[i],2]+dic[2],length=0.05,lwd=1,col='blue'))
-    suppressWarnings(arrows(emb[colnames(em)[i],1],emb[colnames(em)[i],2],emb[colnames(em)[i],1]+dir[1],emb[colnames(em)[i],2]+dir[2],length=0.05,lwd=1,col='red'))
-    suppressWarnings(arrows(emb[colnames(em)[i],1]+dic[1],emb[colnames(em)[i],2]+dic[2],emb[colnames(em)[i],1]+dir[1],emb[colnames(em)[i],2]+dir[2],length=0.05,lwd=1,lty=1,col='grey50'))
-    suppressWarnings(arrows(emb[colnames(em)[i],1],emb[colnames(em)[i],2],emb[colnames(em)[i],1]+dia[1],emb[colnames(em)[i],2]+dia[2],length=0.05,lwd=1,col='black'))
+   
+    data.frame.poster <- as.data.frame(emb[,1])
+    data.frame.poster$PC1 <- emb[,1]
+    data.frame.poster$PC2 <- emb[,2]
+    data.frame.poster$color <- as.numeric(cp[show.cell.diffusion.posterior,])
+    
+    plot.ggplot <- ggplot() + 
+      geom_point(data=data.frame.poster,
+                 aes(x=.data$PC1, y=.data$PC2, fill=.data$color),
+                 alpha=cell.border.alpha,size=point.size,shape=21)+
+      labs(x="PC1", y="PC2", 
+           title="PC1 vs PC2") + 
+      theme(plot.title=element_text(size=12,hjust=0.5)) +
+      scale_fill_gradient(low = low_color, high = high_color)+
+      geom_point(data=point.data.frame[show.cell.diffusion.posterior,],
+                 aes(x=.data$PC1, y=.data$PC2),color="black",shape=3,size=3)
+    
+    
+    return(plot.ggplot)
   } else if(show.trajectories) { # show diffusion paths
     cp <- Matrix::Diagonal(ncol(tp)); # cell position probabilities
     rownames(cp) <- colnames(cp) <- rownames(tp);
@@ -133,8 +146,7 @@ trajectory.vis <- function( emb,tp,vel,emb_local_influence=FALSE,local_influence
     
     # calculate probabilistic trajectories to the final ntop points
     
-    # rank final points by probability
-    cpo <- t(apply(-cp,1,order))
+    
     
     # graph-based walkback approach
     
@@ -179,23 +191,65 @@ trajectory.vis <- function( emb,tp,vel,emb_local_influence=FALSE,local_influence
     
     
     spuci.dist <- as.matrix(dist(t(spuci),method = 'manhattan'))
+    if(n.trajectory.clusters>=dim(spuci.dist)[1]) {
+      cat("n.trajectory.clusters is too big ... set to be ")
+      n.trajectory.clusters = dim(spuci.dist)[1]-1
+      cat(n.trajectory.clusters)
+    }
     spuci.pam <- cluster::pam(spuci.dist,n.trajectory.clusters)
     cat("done.\n")
     
     # bezier
     # determine common start/end points
     #plot(emb,bg='white',pch=21,col=ac(1,alpha=cell.color.alpha), xlab=xlab, ylab=ylab);
-    lapply(1:length(spuci.pam$id.med),function(cn) {
-      if(length(usps[[spuci.pam$id.med[cn]]])>0){
-        mp <- usps[[spuci.pam$id.med[cn]]]; mp <- mp[!duplicated(mp)]
-        bp <- data.frame(do.call(cbind,xspline(emb[mp,],shape=trajectory.spline.shape,draw=F)))
-        lines(bp$x,bp$y,col=ac(1,alpha=0.6))
-        bp <- bp[abs(diff(bp$x))+abs(diff(bp$y))>1e-5,]
-        ai <- round(length(bp$x)*c(0.2,0.8,0.5))
-        arrows(bp$x[ai],bp$y[ai],bp$x[ai+1],bp$y[ai+1],angle=30,length=0.1,col=ac(1,alpha=0.6))
+    
+    plot.ggplot <- ggplot() +
+      geom_point(data=point.data.frame, aes(x=.data$PC1, y=.data$PC2,
+         fill=.data$color), alpha=cell.border.alpha,size=point.size,shape=21) +
+      labs(x="PC1", y="PC2",
+           title="PC1 vs PC2") +
+      theme(plot.title=element_text(size=12,hjust=0.5))
+    
+    
+    for (cn in 1:length(spuci.pam$id.med)) {
+      if (length(usps[[spuci.pam$id.med[cn]]]) > 0) {
+        mp <- usps[[spuci.pam$id.med[cn]]]
+        mp <- mp[!duplicated(mp)]
+        emb_data <- data.frame(emb[mp, ])
+        colnames(emb_data) <- c("x", "y")
+        emb_data <- data.frame(emb[mp, ])
+        colnames(emb_data) <- c("x", "y")
+        
+        
+        # Initialize a new plot (necessary for xspline to work)
+        plot.new()
+        
+        # Use xspline to generate spline points
+        bp <- as.data.frame(xspline(emb_data$x, emb_data$y, 1, draw = FALSE))
+        
+        dev.off()
+        # Close the invisible plotting device
+        # bp <- as.data.frame(bp_$x)
+        # 
+        # bp$y <- bp_$y
+        # colnames(bp) <- c("x", "y")
+        # bp <- bp[abs(diff(emb_data$x)) + abs(diff(emb_data$y)) > 1e-5, ]
+        plot.ggplot <- plot.ggplot +
+          geom_path(data = bp, aes(x = .data$x, y = .data$y),
+                     color = "black",  size = arrow.lwd)#, span = 0.3, method = "loess", alpha = cell.border.alpha
+        
+        bp <- bp[abs(diff(emb_data$x)) + abs(diff(emb_data$y)) > 1e-5, ]
+        ai <- round(length(bp$x) * c(0.2, 0.8, 0.5))
+        
+        bp_arrow <- data.frame(x0 = bp$x[ai], y0 = bp$y[ai], x1 = bp$x[ai + 1], y1 = bp$y[ai + 1])
+
+        plot.ggplot <- plot.ggplot +
+          geom_segment(data = bp_arrow, aes(x = .data$x0, y = .data$y0, xend = .data$x1, yend = .data$y1),
+                       arrow = arrow(length = unit(arrow_size, "inches")), size = arrow.lwd) +
+          theme(legend.position = "none")
       }
-    })
-    return(invisible(list(spuci.dist=spuci.dist,sps=sps,tp=tp,cpl=cpl)))
+    }
+    return(list(plot.ggplot,invisible(list(spuci.dist=spuci.dist,sps=sps,tp=tp,cpl=cpl))))
   } else if(!is.null(show.cell.trajectories)) {
     # show optimal path(s) for a particular cell
     celli <- match(show.cell.trajectories,rownames(emb));
@@ -219,8 +273,7 @@ trajectory.vis <- function( emb,tp,vel,emb_local_influence=FALSE,local_influence
       cpl[[i+1]] <- cp;
     }
     
-    # rank final points by probability
-    cpo <- t(apply(-cp,1,order))
+    
     
     # graph-based walkback approach
     
@@ -252,20 +305,50 @@ trajectory.vis <- function( emb,tp,vel,emb_local_influence=FALSE,local_influence
     sp <- lapply(sp$vpath,function(x) { y <- (as.integer(x) %% nrow(cp)); y[y==0] <- nrow(cp); y});
     names(sp) <- rownames(cp)[top.desti]
     cat("done.\n")
-    lapply(sp,function(mp) {
-      if(!is.null(mp) && length(mp)>0) {
+    
+    plot.ggplot <- ggplot() +
+      geom_point(data=point.data.frame, aes(x=.data$PC1, y=.data$PC2,
+                                            fill=.data$color), alpha=cell.border.alpha,size=point.size,shape=21) +
+      labs(x="PC1", y="PC2",
+           title="PC1 vs PC2") +
+      theme(plot.title=element_text(size=12,hjust=0.5))
+    
+    
+    for (i in seq_along(sp)) {
+      mp <- sp[[i]]
+      if (!is.null(mp) && length(mp) > 0) {
         mp <- mp[!duplicated(mp)]
         if(length(mp)>1)  {
-          lines(emb[mp,1],emb[mp,2],col=8,lty=3)
-          bp <- data.frame(do.call(cbind,xspline(emb[mp,],shape=trajectory.spline.shape,draw=F)))
-          lines(bp$x,bp$y,col=ac(1,alpha=0.6))
+          emb_data <- data.frame(emb[mp, ])
+          colnames(emb_data) <- c("x", "y")
+          plot.new()
+          
+          # Use xspline to generate spline points
+          bp <- as.data.frame(xspline(emb_data$x, emb_data$y, 1, draw = FALSE))
+          
+          dev.off()
+          
+          colnames(bp) <- c("x", "y")
+          plot.ggplot <- plot.ggplot +
+            geom_path(data = bp, aes(x = .data$x, y = .data$y),
+                        color = "black",  size = arrow.lwd, alpha = cell.border.alpha)
+          plot.ggplot <- plot.ggplot +
+            geom_path(data = emb_data, aes(x = .data$x, y = .data$y),
+                      color = "black",  size = arrow.lwd, alpha = cell.border.alpha)
           bp <- bp[abs(diff(bp$x))+abs(diff(bp$y))>1e-5,]
           ai <- round(length(bp$x)*c(0.2,0.8,0.5))
-          arrows(bp$x[ai],bp$y[ai],bp$x[ai+1],bp$y[ai+1],angle=30,length=0.1,col=ac(1,alpha=0.6))
+          bp_arrow <- data.frame(x0 = bp$x[ai], y0 = bp$y[ai], x1 = bp$x[ai + 1], y1 = bp$y[ai + 1])
+          
+          plot.ggplot <- plot.ggplot +
+            geom_segment(data = bp_arrow, aes(x = .data$x0, y = .data$y0, xend = .data$x1, yend = .data$y1),
+                         arrow = arrow(length = unit(arrow_size, "inches")), size = arrow.lwd) +
+            theme(legend.position = "none")
         }
       }
-    })
-    return(invisible(sp))
+    }
+    
+    
+    return(list(plot.ggplot,invisible(sp)))
   } else if(show.all.trajectories) { # show diffusion paths
     cp <- Matrix::Diagonal(ncol(tp)); # cell position probabilities row-from col-to
     rownames(cp) <- colnames(cp) <- rownames(tp);
@@ -279,18 +362,30 @@ trajectory.vis <- function( emb,tp,vel,emb_local_influence=FALSE,local_influence
       #epi <- as.matrix(cp %*% emb);
       ep <- abind::abind(ep,epi,along=3)
     }
-    apply(ep,c(1),function(d) {
-      lines(d[1,],d[2,],lwd=1,col=ac(1,alpha=0.05))
-    })
+    plot.ggplot <- ggplot() +
+      geom_point(data=point.data.frame, aes(x=.data$PC1, y=.data$PC2,
+                                            fill=.data$color), alpha=cell.border.alpha,size=point.size,shape=21) +
+      labs(x="PC1", y="PC2",
+           title="PC1 vs PC2") +
+      theme(plot.title=element_text(size=12,hjust=0.5))
+    
+    
+    # for (i in 1:length(ep)){
+    #   plot.ggplot <- plot.ggplot +
+    #     geom_path(data = ep, aes(x = .data$x, y = .data$y),
+    #               color = "black",  size = arrow.lwd, alpha = cell.border.alpha)
+    # }
+    #  apply(ep,c(1),function(d) {
+    #    lines(d[1,],d[2,],lwd=1,col=ac(1,alpha=0.05))
+    #  })
+    for (i in 1:dim(ep)[1]) {
+      plot.ggplot <- plot.ggplot  +
+        geom_path(data = data.frame(x = ep[i,1 , ], y = ep[i,2 , ]), aes(x = .data$x, y = .data$y),
+                  alpha = cell.border.alpha, size = 1, color = "black")
+    }
+    return(plot.ggplot)
   } else {
-    # calculate arrows, draw
-    lapply(1:nrow(emb),function(i) {
-      # normalized directions to each point
-      di <- t(t(emb)-emb[i,])
-      di <- di/sqrt(Matrix::rowSums(di^2))*arrow.scale; di[i,] <- 0;
-      di <- Matrix::colSums(di*tp[,i])
-      suppressWarnings(arrows(emb[colnames(em)[i],1],emb[colnames(em)[i],2],emb[colnames(em)[i],1]+di[1],emb[colnames(em)[i],2]+di[2],length=0.05,lwd=arrow.lwd))
-    })
+    stop("please change the parameters to output the trajectory")
   }
 }
 

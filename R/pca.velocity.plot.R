@@ -1,6 +1,8 @@
 ##' PCA-based visualization of the velocities
 ##'
-##' @param vel velocity estimation (gene-relative or global)
+##' @param current current matrix
+##' @param projected projected matrix
+##' @param deltaE deltaE matrix
 ##' @param nPcs number of successive PCs to visualize
 ##' @param cell.colors a named vector of cell colors for visualization
 ##' @param scale scale to use for expression state transform (default: 'log', other possible values are 'sqrt','linear')
@@ -22,6 +24,8 @@
 ##' @param max.grid.arrow.length limit to the size of the arrows that could be shown (when fixed.arrow.length=FALSE)
 ##' @param n.cores number of cores to use in the calculations
 ##' @param point.size size of the point
+##' @param cell.border.alpha transparency for the cell border
+##' @param arrow_size size of arrow
 ##' @param ... extra parameters are passed to plot() function
 ##'
 ##' @importFrom pcaMethods pca
@@ -31,16 +35,17 @@
 ##'
 ##' @return If return.details=F, returns invisible list containing PCA info (epc) and projection of velocities onto the PCs (delta.pcs). If return.details=T, returns an extended list that can be passed into p1 app for velocity visualization.
 ##' @export
-pca.velocity.plot <- function(vel,nPcs=4,cell.colors=NULL,scale='log',
+pca.velocity.plot <- function(current,projected,deltaE,nPcs=4,cell.colors=NULL,scale='log',
                               plot.cols=min(3,nPcs-1),norm.nPcs=NA,
                               pc.multipliers=NULL, show.grid.flow=FALSE, grid.n=20,
                               grid.sd=NULL, arrow.scale=1, min.grid.cell.mass=1,
                               min.arrow.size=NULL, pcount=1, arrow.lwd=1,
                               size.norm=FALSE, return.details=FALSE,
                               plot.grid.points=FALSE, fixed.arrow.length=FALSE,
-                              max.grid.arrow.length=NULL, n.cores=1,point.size=3, ...) {
-  x0 <- vel$current
-  x1 <- vel$projected
+                              max.grid.arrow.length=NULL, n.cores=1,point.size=3,
+                              cell.border.alpha=0.5,arrow_size=0.3,...) {
+  x0 <- current
+  x1 <- projected
   if(is.null(cell.colors)) { cell.colors <- ac(rep(1,ncol(x0)),alpha=0.3); names(cell.colors) <- colnames(x0) }
   # rescale to the same size
   if(size.norm) {
@@ -146,12 +151,12 @@ pca.velocity.plot <- function(vel,nPcs=4,cell.colors=NULL,scale='log',
       if(fixed.arrow.length) {
         plot.ggplot <- ggplot() +
           geom_point(data=point_data.frame, aes(x=.data$PC1, y=.data$PC2, 
-                                    color=.data$color), alpha=1,size=point.size) + 
+                                    fill=.data$color), alpha=cell.border.alpha,size=point.size, shape = 21) + 
           labs(x=paste("PC",(i-1)+1), y=paste("PC",(i-1)+2), 
-               title=paste('PC',(i-1)+1,' vs. PC',(i-1)+2,sep='')) + 
+               title=paste('PC',(i-1)+1,' vs PC',(i-1)+2,sep='')) + 
           theme(legend.position="none", plot.title=element_text(size=12,hjust=0.5)) + 
           geom_segment(data=garrows, aes(x=.data$x0, y=.data$y0, xend=.data$x1, yend=.data$y1), 
-                       arrow=arrow(length=unit(0.05, "inches")), size=arrow.lwd)
+                       arrow=arrow(length=unit(arrow_size, "inches")), size=arrow.lwd)
       } else {
         alen <- pmin(max.grid.arrow.length,sqrt(((garrows[,3]-garrows[,1]) * par('pin')[1] / diff(par('usr')[c(1,2)]))^2 + 
                                                   ((garrows[,4]-garrows[,2]) * par('pin')[2] / diff(par('usr')[c(3,4)]))^2))
@@ -161,9 +166,9 @@ pca.velocity.plot <- function(vel,nPcs=4,cell.colors=NULL,scale='log',
         }
         plot.ggplot <- ggplot() +
           geom_point(data=point_data.frame, aes(x=.data$PC1, y=.data$PC2,
-                         color=.data$color), alpha=1,size=point.size) + 
+                         fill=.data$color), alpha=cell.border.alpha,size=point.size, shape = 21) + 
           labs(x=paste("PC",(i-1)+1), y=paste("PC",(i-1)+2), 
-               title=paste('PC',(i-1)+1,' vs. PC',(i-1)+2,sep='')) + 
+               title=paste('PC',(i-1)+1,' vs PC',(i-1)+2,sep='')) + 
           theme(legend.position="none", plot.title=element_text(size=12,hjust=0.5))
         
         for (j in 1:nrow(garrows)) {
@@ -172,16 +177,13 @@ pca.velocity.plot <- function(vel,nPcs=4,cell.colors=NULL,scale='log',
                                                 xend=garrows$x1[j], yend=garrows$y1[j],
                                                 arrow=custom_arrow(garrows$arrow_length[j]),
                                                 size=arrow.lwd)
+          if(plot.grid.points) {
+            plot.ggplot <- plot.ggplot + geom_point(data=garrows[j,], 
+              aes(x=.data$x0, y=.data$y0),color="black", alpha=0.7, shape = 17,size=2)
+          } 
         }
       }
-      if(plot.grid.points) {
-        grid.points.data.frame <- as.data.frame(rep(gx,each=length(gy)))
-        grid.points.data.frame$x <- rep(gx,each=length(gy))
-        grid.points.data.frame$y <- rep(gy,each=length(gx))
-        grid.points.data.frame$color <- ac(1,alpha=0.4)
-        plot.ggplot <- plot.ggplot + geom_point(data=grid.points.data.frame, 
-                                                aes(x=.data$x, y=.data$y, color=.data$color), alpha=0.4)
-      } 
+      
       
       if(return.details) { # for the p1 app
         # calculate expression shift
@@ -193,7 +195,7 @@ pca.velocity.plot <- function(vel,nPcs=4,cell.colors=NULL,scale='log',
         gs <- epc@loadings[,c((i-1)+1,(i-1)+2)] %*% rbind(garrows[,3]-garrows[,1],garrows[,4]-garrows[,2])
         
         # note: here we're using deltaE vector, which may be normalized a bit differently from the $current/$projectted that was used above
-        nd <- as.matrix(vel$deltaE)
+        nd <- as.matrix(deltaE)
         if(scale=='log') {
           nd <- (log10(abs(nd)+1)*sign(nd))
         } else if(scale=='sqrt') {
@@ -231,17 +233,43 @@ pca.velocity.plot <- function(vel,nPcs=4,cell.colors=NULL,scale='log',
       garrows$y0 <- pos[,2]
       garrows$x1 <- ppos[,1]
       garrows$y1 <- ppos[,2]
+      garrows <- garrows[,c("x0","y0","x1","y1")]
+      if (fixed.arrow.length==TRUE){
+        # draw individual arrows
+        plot.ggplot <- ggplot() +
+          geom_point(data=point_data.frame, aes(x=.data$PC1, y=.data$PC2, fill=.data$color),
+                     alpha=cell.border.alpha,size=point.size, shape = 21) + 
+          labs(x=paste("PC",(i-1)+1), y=paste("PC",(i-1)+2), 
+               title=paste('PC',(i-1)+1,' vs PC',(i-1)+2,sep='')) + 
+          theme(legend.position="none", plot.title=element_text(size=12,hjust=0.5)) 
+        plot.ggplot <- plot.ggplot  + 
+          geom_segment(data=garrows, aes(x=.data$x0, y=.data$y0, xend=.data$x1, yend=.data$y1), 
+                       arrow=arrow(length=unit(arrow_size, "inches")), size=arrow.lwd)
+        plot.ggplot
+      } else{
+        alen <- pmin(0.05,sqrt(((garrows[,3]-garrows[,1]) * par('pin')[1] / diff(par('usr')[c(1,2)]))^2 + 
+                                                  ((garrows[,4]-garrows[,2]) * par('pin')[2] / diff(par('usr')[c(3,4)]))^2))
+        garrows <- data.frame(garrows, arrow_length=alen)
+        custom_arrow <- function(length) {
+          grid::arrow(length = unit(length, "inches"))
+        }
+        plot.ggplot <- ggplot() +
+          geom_point(data=point_data.frame, aes(x=.data$PC1, y=.data$PC2,
+                            fill=.data$color), alpha=cell.border.alpha,size=point.size, shape = 21) + 
+          labs(x=paste("PC",(i-1)+1), y=paste("PC",(i-1)+2), 
+               title=paste('PC',(i-1)+1,' vs PC',(i-1)+2,sep='')) + 
+          theme(legend.position="none", plot.title=element_text(size=12,hjust=0.5))
+        
+        for (j in 1:nrow(garrows)) {
+          plot.ggplot <- plot.ggplot + annotate("segment",
+                                                x=garrows$x0[j], y=garrows$y0[j],
+                                                xend=garrows$x1[j], yend=garrows$y1[j],
+                                                arrow=custom_arrow(garrows$arrow_length[j]),
+                                                size=arrow.lwd)
+        }
+        plot.ggplot
+      }
       
-      # draw individual arrows
-      plot.ggplot <- ggplot() +
-        geom_point(data=point_data.frame, aes(x=.data$PC1, y=.data$PC2, color=.data$color),
-                   alpha=1,size=point.size) + 
-        labs(x=paste("PC",(i-1)+1), y=paste("PC",(i-1)+2), 
-             title=paste('PC',(i-1)+1,' vs. PC',(i-1)+2,sep='')) + 
-        theme(legend.position="none", plot.title=element_text(size=12,hjust=0.5)) 
-      plot.ggplot <- plot.ggplot  + 
-        geom_segment(data=garrows, aes(x=.data$x0, y=.data$y0, xend=.data$x1, yend=.data$y1), 
-                     arrow=arrow(length=unit(0.05, "inches")), size=arrow.lwd)
     }
   })
   cat("done\n")

@@ -6,7 +6,9 @@
 \usage{
 show.velocity.on.embedding.cor(
   emb,
-  vel,
+  current,
+  projected,
+  deltaE,
   n = 100,
   cell.colors = NULL,
   corr.sigma = 0.05,
@@ -25,19 +27,24 @@ show.velocity.on.embedding.cor(
   xlab = "",
   ylab = "",
   n.cores = 1,
-  do.par = T,
   show.cell = NULL,
-  cell.border.alpha = 0.3,
+  cell.border.alpha = 0.5,
   cc = NULL,
   return.details = FALSE,
   expression.scaling = FALSE,
+  point.size = 3,
+  arrow_size = 0.3,
   ...
 )
 }
 \arguments{
 \item{emb}{embedding onto which to project the velocities; The dimensions of coordinates should be on the order of 10x10 for the default values to make sense.}
 
-\item{vel}{velocity estimates (e.g. returned by gene.relative.velocity.estimates() )}
+\item{current}{current matrix}
+
+\item{projected}{projected matrix}
+
+\item{deltaE}{deltaE matrix}
 
 \item{n}{neighborhood size (default=100 cells)}
 
@@ -75,8 +82,6 @@ show.velocity.on.embedding.cor(
 
 \item{n.cores}{number of cores to use}
 
-\item{do.par}{whether to reset plotting parameters}
-
 \item{show.cell}{whether to show detailed velocity estimates for a specified cell}
 
 \item{cell.border.alpha}{transparency for the cell border}
@@ -86,6 +91,10 @@ show.velocity.on.embedding.cor(
 \item{return.details}{whether to return detailed output (which can be passed to p1 app for visualization)}
 
 \item{expression.scaling}{whether to scale the velocity length by the projection of velocity onto the expected expression change (based on the transition probability matrix)}
+
+\item{point.size}{size of the point}
+
+\item{arrow_size}{size of arrow}
 
 \item{...}{extra parameters passed to plot() function}
 }

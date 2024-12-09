@@ -7,7 +7,9 @@
 ##' Given an expression distance between cells d, and ratio of extrapolated to current expression distances between cells f, the transition probability is calculated as exp(- (d*(f^beta))^2/(2*sigma^2) )
 ##'
 ##' @param emb embedding to be used for projection
-##' @param vel velocity result
+##' @param current current matrix
+##' @param projected projected matrix
+##' @param deltaE deltaE matrix
 ##' @param n neighborhood size (default=30)
 ##' @param embedding.knn pre-calculated kNN
 ##' @param cell.colors named color vector for cell plotting
@@ -20,7 +22,6 @@
 ##' @param xlab x axis label
 ##' @param ylab y axis label
 ##' @param control.for.neighborhood.density compensate for cell density variations in the embedding (default: TRUE)
-##' @param do.par whether to reset plotting parameters (default=TRUE)
 ##' @param cell.dist - optional custom distance (must include all of the cells that are intersecting between emb and vel)
 ##' @param cell.border.alpha trasparency parameter to apply when showing cell colors
 ##' @param n.cores number of cores to use in calculations
@@ -35,6 +36,8 @@
 ##' @param plot.grid.points whether to mark all grid points with dots (even if they don't have valid velocities)
 ##' @param return.details whether to return detailed output (which can be passed to p1 app for visualization)
 ##' @param expression.scaling whether to scale the velocity length by the projection of velocity onto the expected expression change (based on the transition probability matrix)
+##' @param point.size size of the point
+##' @param arrow_size size of arrow
 ##' @param ... extra parameters are passed to the plot() function
 
 ##' @importFrom cluster pam
@@ -44,7 +47,7 @@
 ##'
 ##' @return transition probability matrix
 ##' @export
-show.velocity.on.embedding.eu <- function(emb,vel,n=30,embedding.knn=TRUE,
+show.velocity.on.embedding.eu <- function(emb,current,projected,deltaE,n=30,embedding.knn=TRUE,
                                           cell.colors=NULL, sigma=NA, beta=1,
                                           arrow.scale=1, scale='log', nPcs=NA,
                                           arrow.lwd=1, xlab="", ylab="",
@@ -54,21 +57,33 @@ show.velocity.on.embedding.eu <- function(emb,vel,n=30,embedding.knn=TRUE,
                                           max.grid.arrow.length=NULL,
                                           fixed.arrow.length=FALSE,
                                           plot.grid.points=FALSE,
-                                          control.for.neighborhood.density=TRUE, do.par=T,
+                                          control.for.neighborhood.density=TRUE, 
                                           cell.dist=NULL, return.details=FALSE,
                                           expression.scaling=FALSE,
-                                          cell.border.alpha=0.5, n.cores=1, ...) {
+                                          cell.border.alpha=0.5, n.cores=1,
+                                          point.size=3,arrow_size=0.3,...) {
   options(warn = -1)
-  em <- vel$current; emn <- vel$projected;
+  em <- current; emn <- projected;
   if(is.null(cell.colors)) { cell.colors <- ac(rep(1,ncol(em)),alpha=0.3); names(cell.colors) <- colnames(em) }
   celcol <- 'white'
   if(is.null(show.cell)) { celcol <- cell.colors[rownames(emb)] }
-  if(do.par) par(mar = c(3.5,3.5,2.5,1.5), mgp = c(2,0.65,0), cex = 0.85);
   
-  plot(emb,bg=celcol,pch=21,col=ac(1,alpha=cell.border.alpha), xlab=xlab, ylab=ylab, ...);
+  
 
   ccells <- intersect(rownames(emb),colnames(em));
   emn <- emn[,ccells]; em <- em[,ccells]; emb <- emb[ccells,]
+  
+  point.data.frame <- as.data.frame(emb[ccells,1])
+  point.data.frame$PC1 <- emb[ccells,1]
+  point.data.frame$PC2 <- emb[ccells,2]
+  point.data.frame$color <- celcol[ccells]
+  point.data.frame <- point.data.frame[,c("PC1","PC2","color")]
+  plot.ggplot <- ggplot() +
+    geom_point(data=point.data.frame, aes(x=.data$PC1, y=.data$PC2, 
+                                          fill=.data$color), alpha=cell.border.alpha,size=point.size,shape=21) + 
+    labs(x="PC1", y="PC2", 
+         title="PC1 vs PC2") + 
+    theme(legend.position="none", plot.title=element_text(size=12,hjust=0.5))
 
   if(scale=='log') {
     cat("log scale ... ")
@@ -162,45 +177,39 @@ show.velocity.on.embedding.eu <- function(emb,vel,n=30,embedding.knn=TRUE,
   # normalize transition probabilities
   rownames(tp) <- colnames(tp) <- rownames(np) <- colnames(np) <- colnames(em);
   cat("done\n")
+ 
+  # arrow estimates for each cell
+  cat("calculating arrows ... ")
+  arsd <- data.frame(t(embArrows(emb,tp,arrow.scale,n.cores)))
+  rownames(arsd) <- rownames(emb);
+  
+  if(expression.scaling) {
+    tpb <- tp>0; tpb <- t(t(tpb)/colSums(tpb));
+    es <- as.matrix(em %*% tp) -as.matrix(em %*% as.matrix(tpb));
+    pl <- pmin(1,pmax(0,apply(as.matrix(deltaE[,colnames(es)]) * es, 2, sum)/sqrt(colSums(es*es))))
+    
+    
+    arsd <- arsd * pl;
+  }
+  
+  
+  ars <- data.frame(cbind(emb,emb+arsd));
+  colnames(ars) <- c('x0','y0','x1','y1')
+  colnames(arsd) <- c('xd','yd')
+  rownames(ars) <- rownames(emb);
+  cat("done\n")
+  
   if(!is.null(show.cell)) {
     i <- match(show.cell,rownames(emb));
     if(is.na(i)) stop(paste('specified cell',i,'is not in the embedding'))
-    # plot transition prob for a given cell
-    points(emb,pch=19,col=ac(val2col(tp[rownames(emb),show.cell],gradient.range.quantile=1),alpha=0.5))
-    points(emb[show.cell,1],emb[show.cell,2],pch=3,cex=1,col=1)
-    di <- t(t(emb)-emb[i,])
-    di <- di/sqrt(Matrix::rowSums(di^2))*arrow.scale; di[i,] <- 0;
-    dir <- Matrix::colSums(di*tp[,i])
-    dic <- Matrix::colSums(di*(tp[,i]>0)/sum(tp[,i]>0)); # relative to expected kNN center
-    dia <- dir-dic;
-    #browser()
-    suppressWarnings(arrows(emb[colnames(em)[i],1],emb[colnames(em)[i],2],emb[colnames(em)[i],1]+dic[1],emb[colnames(em)[i],2]+dic[2],length=0.05,lwd=1,col='blue'))
-    suppressWarnings(arrows(emb[colnames(em)[i],1],emb[colnames(em)[i],2],emb[colnames(em)[i],1]+dir[1],emb[colnames(em)[i],2]+dir[2],length=0.05,lwd=1,col='red'))
-    suppressWarnings(arrows(emb[colnames(em)[i],1]+dic[1],emb[colnames(em)[i],2]+dic[2],emb[colnames(em)[i],1]+dir[1],emb[colnames(em)[i],2]+dir[2],length=0.05,lwd=1,lty=1,col='grey50'))
-    suppressWarnings(arrows(emb[colnames(em)[i],1],emb[colnames(em)[i],2],emb[colnames(em)[i],1]+dia[1],emb[colnames(em)[i],2]+dia[2],length=0.05,lwd=1,col='black'))
-  } else {
-    # arrow estimates for each cell
-    cat("calculating arrows ... ")
-    arsd <- data.frame(t(embArrows(emb,tp,arrow.scale,n.cores)))
-    rownames(arsd) <- rownames(emb);
     
-    if(expression.scaling) {
-      tpb <- tp>0; tpb <- t(t(tpb)/colSums(tpb));
-      es <- as.matrix(em %*% tp) -as.matrix(em %*% as.matrix(tpb));
-      pl <- pmin(1,pmax(0,apply(as.matrix(vel$deltaE[,colnames(es)]) * es, 2, sum)/sqrt(colSums(es*es))))
-      
-      
-      arsd <- arsd * pl;
-    }
-    
-    
-    ars <- data.frame(cbind(emb,emb+arsd));
-    colnames(ars) <- c('x0','y0','x1','y1')
-    colnames(arsd) <- c('xd','yd')
-    rownames(ars) <- rownames(emb);
-    cat("done\n")
-    
-    
+    ars_point <- ars[show.cell,]
+    plot.ggplot <- plot.ggplot + geom_point(data= ars_point, 
+                                            aes(x=.data$x0, y=.data$y0),color="black",size=4)+
+      geom_segment(data=ars_point, aes(x=.data$x0, y=.data$y0, xend=.data$x1, yend=.data$y1), 
+                   arrow=arrow(length=unit(arrow_size, "inches")), size=arrow.lwd)+
+      theme(legend.position="none") 
+  } else{
     if(show.grid.flow) { # show grid summary of the arrows
       
       # set up a grid
@@ -243,15 +252,30 @@ show.velocity.on.embedding.eu <- function(emb,vel,n=30,embedding.knn=TRUE,
       
       # plot
       if(fixed.arrow.length) {
-        suppressWarnings(arrows(garrows[,1],garrows[,2],garrows[,3],garrows[,4],length=0.05,lwd=arrow.lwd))
+        plot.ggplot <- plot.ggplot + 
+          theme(legend.position="none", plot.title=element_text(size=12,hjust=0.5)) + 
+          geom_segment(data=garrows, aes(x=.data$x0, y=.data$y0, xend=.data$x1, yend=.data$y1), 
+                       arrow=arrow(length=unit(arrow_size, "inches")), size=arrow.lwd)
       } else {
-        alen <- pmin(max.grid.arrow.length,sqrt( ((garrows[,3]-garrows[,1]) * par('pin')[1] / diff(par('usr')[c(1,2)]) )^2 + ((garrows[,4]-garrows[,2])*par('pin')[2] / diff(par('usr')[c(3,4)]) )^2))
-        # can't specify different arrow lengths in one shot :(
-        #suppressWarnings(arrows(garrows[,1],garrows[,2],garrows[,3],garrows[,4],length=alen,lwd=arrow.lwd))
-        suppressWarnings(lapply(1:nrow(garrows),function(i) arrows(garrows[i,1],garrows[i,2],garrows[i,3],garrows[i,4],length=alen[i],lwd=arrow.lwd)))
+        alen <- pmin(max.grid.arrow.length,sqrt(((garrows[,3]-garrows[,1]) * par('pin')[1] / diff(par('usr')[c(1,2)]))^2 + 
+                                                  ((garrows[,4]-garrows[,2]) * par('pin')[2] / diff(par('usr')[c(3,4)]))^2))
+        garrows <- data.frame(garrows, arrow_length=alen)
+        custom_arrow <- function(length) {
+          grid::arrow(length = unit(length, "inches"))
+        }
+        
+        for (j in 1:nrow(garrows)) {
+          plot.ggplot <- plot.ggplot + annotate("segment",
+                                                x=garrows$x0[j], y=garrows$y0[j],
+                                                xend=garrows$x1[j], yend=garrows$y1[j],
+                                                arrow=custom_arrow(garrows$arrow_length[j]),
+                                                size=arrow.lwd)
+        }
+        if(plot.grid.points) {
+          plot.ggplot <- plot.ggplot + geom_point(data=garrows[j,], 
+                                                  aes(x=.data$x0, y=.data$y0),color="black", alpha=0.7, shape = 17,size=2)
+        } 
       }
-      if(plot.grid.points) points(rep(gx,each=length(gy)),rep(gy,length(gx)),pch='.',cex=1e-1,col=ac(1,alpha=0.4))
-      
       cat("done\n")
       
       if(return.details) { # for the p1 app
@@ -311,7 +335,7 @@ show.velocity.on.embedding.eu <- function(emb,vel,n=30,embedding.knn=TRUE,
         cat(". done\n")
         
         
-        return(invisible(list(tp=tp,cc=cc,garrows=garrows,arrows=as.matrix(ars),vel=nd,eshifts=es,gvel=gv,geshifts=gs,scale=scale)))
+        return(list(plot.ggplot,invisible(list(tp=tp,cc=cc,garrows=garrows,arrows=as.matrix(ars),vel=nd,eshifts=es,gvel=gv,geshifts=gs,scale=scale))))
       }
       
       
@@ -319,19 +343,33 @@ show.velocity.on.embedding.eu <- function(emb,vel,n=30,embedding.knn=TRUE,
       
     } else { 
       
-      apply(ars,1,function(x) {
-        if(fixed.arrow.length) {
-          suppressWarnings(arrows(x[1],x[2],x[3],x[4],length=0.05,lwd=arrow.lwd))
-        } else {
-          ali <- sqrt( ((x[3]-x[1]) * par('pin')[1] / diff(par('usr')[c(1,2)]) )^2 + ((x[4]-x[2])*par('pin')[2] / diff(par('usr')[c(3,4)]) )^2)
-          suppressWarnings(arrows(x[1],x[2],x[3],x[4],length=min(0.05,ali),lwd=arrow.lwd))
+      if(fixed.arrow.length) {
+        plot.ggplot <- plot.ggplot +
+          geom_segment(data=ars, aes(x=.data$x0, y=.data$y0, xend=.data$x1, yend=.data$y1), 
+                       arrow=arrow(length=unit(arrow_size, "inches")), size=arrow.lwd)+
+          theme(legend.position="none") 
+      } else {
+        alen <- pmin(0.05,sqrt(((ars[,3]-ars[,1]) * par('pin')[1] / diff(par('usr')[c(1,2)]))^2 + 
+                                 ((ars[,4]-ars[,2]) * par('pin')[2] / diff(par('usr')[c(3,4)]))^2))
+        ars <- data.frame(ars, arrow_length=alen)
+        custom_arrow <- function(length) {
+          grid::arrow(length = unit(length, "inches"))
         }
-      })
-      
+        
+        
+        for (j in 1:nrow(ars)) {
+          plot.ggplot <- plot.ggplot + annotate("segment",
+                                                x=ars$x0[j], y=ars$y0[j],
+                                                xend=ars$x1[j], yend=ars$y1[j],
+                                                arrow=custom_arrow(ars$arrow_length[j]),
+                                                size=arrow.lwd)
+        }
+      }
       
     }
   }
-  return(invisible(list(tp=tp,cc=cc,cc0=cc0)))
+  
+  return(list(plot.ggplot,invisible(list(tp=tp,cc=cc))))
 
 }
 

@@ -7,12 +7,11 @@
 trajectory.vis(
   emb,
   tp,
-  vel,
+  current,
   emb_local_influence = FALSE,
   local_influence_prob = 0.2,
   sigma_d = NA,
   arrow.scale = 1,
-  show.cell.arrows = NULL,
   show.cell.trajectories = NULL,
   cell.colors = NULL,
   show.trajectories = FALSE,
@@ -25,10 +24,13 @@ trajectory.vis(
   show.grid.flow = FALSE,
   diffusion.steps = 10,
   cell.border.alpha = 0.5,
-  do.par = TRUE,
   ntop.trajectories = 1,
   trajectory.spline.shape = 1,
   n.trajectory.clusters = 10,
+  point.size = 3,
+  low_color = "#FFCC15",
+  high_color = "#9933FF",
+  arrow_size = 0.1,
   ...
 )
 }
@@ -37,7 +39,7 @@ trajectory.vis(
 
 \item{tp}{transition probability}
 
-\item{vel}{velocity result}
+\item{current}{current matrix}
 
 \item{emb_local_influence}{whether consider the emb influence}
 
@@ -46,8 +48,6 @@ trajectory.vis(
 \item{sigma_d}{the hyper-parameter of local influence}
 
 \item{arrow.scale}{additional scaling factor for the arrows (default=1)}
-
-\item{show.cell.arrows}{show detailed velocity projection for the specified cell}
 
 \item{show.cell.trajectories}{show trajectories for a specified cell}
 
@@ -73,13 +73,19 @@ trajectory.vis(
 
 \item{cell.border.alpha}{transparency for the cell border}
 
-\item{do.par}{whether to reset plotting parameters}
-
 \item{ntop.trajectories}{number of top trajectories to trace back for a given cell (when show.trajectories=TRUE)}
 
 \item{trajectory.spline.shape}{shape parameter for smoothing median cell trajectories (default=1)}
 
 \item{n.trajectory.clusters}{number of trajectory clusters to show median paths for (when show.trajectories=TRUE)}
+
+\item{point.size}{size of the point}
+
+\item{low_color}{the hyper-parameter for show site low color}
+
+\item{high_color}{the hyper-parameter for show site high color}
+
+\item{arrow_size}{size of arrow}
 
 \item{...}{extra parameters passed to plot() function}
 }

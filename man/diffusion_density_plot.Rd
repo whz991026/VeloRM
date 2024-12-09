@@ -12,7 +12,9 @@ diffusion_density_plot(
   scale = "linear",
   log_unit = 1e-05,
   low_color = "#FFCC15",
-  high_color = "#9933FF"
+  high_color = "#9933FF",
+  point.size = 2,
+  cell.border.alpha = 1
 )
 }
 \arguments{
@@ -28,9 +30,13 @@ diffusion_density_plot(
 
 \item{log_unit}{the hyper parameter of the log scale}
 
-\item{low_color}{the hyper-parameter for show gene low color}
+\item{low_color}{the hyper-parameter for show site low color}
 
-\item{high_color}{the hyper-parameter for show gene high color}
+\item{high_color}{the hyper-parameter for show site high color}
+
+\item{point.size}{size of the point}
+
+\item{cell.border.alpha}{transparency for the cell border}
 }
 \value{
 a data frame of the plot

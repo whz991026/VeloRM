@@ -1,37 +1,36 @@
-##' Estimate RNA velocity using gene-relative slopes
+##' Estimate RNA velocity using site-relative slopes
 ##'
 ##' @param emat - spliced (exonic) count matrix
 ##' @param nmat - unspliced (nascent) count matrix
 ##' @param deltaT - amount of time to project the cell forward
-##' @param smat - optional spanning read matrix (used in offset calculations)
 ##' @param steady.state.cells - optional set of steady-state cells on which the gamma should be estimated (defaults to all cells)
 ##' @param kCells - number of k nearest neighbors (NN) to use in slope calculation smoothing
 ##' @param cellKNN - optional pre-calculated cell KNN matrix
-##' @param kGenes - number of genes (k) to use in gene kNN pooling
-##' @param geneKNN - optional pre-calculated gene KNN matrix
+##' @param kSites - number of sites (k) to use in site kNN pooling
+##' @param siteKNN - optional pre-calculated site KNN matrix
 ##' @param old.fit - optional old result (in this case the slopes and offsets won't be recalculated, and the same kNN graphs will be used)
 ##' @param mult - library scaling factor (1e6 in case of FPM)
-##' @param min.nmat.smat.correlation - minimum required Spearman rank correlation between n and s counts of a gene
-##' @param min.nmat.emat.correlation - minimum required Spearman rank correlation between n and e counts of a gene
+##' @param min.nmat.emat.correlation - minimum required Spearman rank correlation between n and e counts of a site
 ##' @param min.nmat.emat.slope - minimum sloope of n~e regression
-##' @param zero.offset - should offset be set to zero, or determined (through smat regression or using near-0 e cases)
+##' @param zero.offset - should offset be set to zero
 ##' @param deltaT2 - scaling of the projected difference vector (normally should be set to 1)
 ##' @param delta_model estimate the delat use model 1 or model 2
 ##' @param fit.quantile perform gamma fit on a top/bottom quantiles of expression magnitudes
 ##' @param diagonal.quantiles whether extreme quantiles should be computed diagonally
-##' @param show.gene an optional name of a gene for which the velocity estimation details should be shown (instead of estimating all velocities)
+##' @param show.site an optional name of a site for which the velocity estimation details should be shown (instead of estimating all velocities)
 ##' @param cell.dist - cell distance to use in cell kNN pooling calculations
 ##' @param emat.size - pre-calculated cell sizes for the emat (spliced) matrix
 ##' @param nmat.size - pre-calculated cell sizes for the nmat (unspliced) matrix
-##' @param cell.emb - cell embedding to be used in show.gene function
-##' @param cell.colors - cell colors to be used in show.gene function
-##' @param expression.gradient - color palette used to show the expression magnitudes in show.gene function
-##' @param residual.gradient - color palette used to show the u residuals in show.gene function
+##' @param cell.emb - cell embedding to be used in show.site function
+##' @param cell.colors - cell colors to be used in show.site function
+##' @param expression.gradient - color palette used to show the expression magnitudes in show.site function
+##' @param residual.gradient - color palette used to show the u residuals in show.site function
 ##' @param n.cores - number of cores to use
 ##' @param verbose - output messages about progress
-##' @param nrows the hyper-parameter for show gene plot the number of rows
-##' @param low_color the hyper-parameter for show gene low color
-##' @param high_color the hyper-parameter for show gene high color
+##' @param nrows the hyper-parameter for show site plot the number of rows
+##' @param low_color the hyper-parameter for show site low color
+##' @param high_color the hyper-parameter for show site high color
+##' @param point.size size of the point
 ##'
 ##' @import MASS
 ##' @import Matrix
@@ -42,56 +41,32 @@
 ##' @importFrom graphics abline box lines par
 ##'
 ##' @return a list with velocity results, including the current normalized expression state ($current), projected ($projected) over a certain time ($deltaT), unscaled transcriptional change ($deltaE), fit results ($gamma, $ko, $sfit if spanning reads were used), optional cell pooling parameters ($cellKNN, $kCells), kNN-convolved normalized matrices (conv.nmat.norm and conv.emat.norm), library scale ($mult)
-##' @examples
-##' \dontrun{
-##'  # use min/max quantile gamma fit (recommended option when one can afford to do cell kNN smoothing)
-##'  # The example below uses k=5 cell kNN pooling, and top/bottom 2% exprssion quantiles
-##'  # emat and nmat are spliced (exonic) and unspliced (intronic) molecule/read count matirces
-##' (preferably filtered for informative genes)
-##'  rvel <- gene.relative.velocity.estimates(emat,nmat,deltaT=1,kCells = 5,fit.quantile = 0.02)
-##'
-##'  # alternativly, the function can be used to visualize gamma fit and regression for a
-##' particular gene. here we pass embedding (a matrix/data frame with rows named with cell names,
-##' and columns corresponding to the x/y coordinates)
-##'
-##'  # and cell colors. old.fit is used to save calculation time.
-##'  gene.relative.velocity.estimates(emat,nmat,deltaT=1,kCells = 5,fit.quantile = 0.02,
-##'     old.fit=rvel,show.gene='Chga',cell.emb=emb,cell.colors=cell.colors)
-##' }
+##' 
 ##' @export
-gene.relative.velocity.estimates <- function (
-        emat, nmat, deltaT = 1, smat = NULL, steady.state.cells = colnames(emat),
-        kCells = 10, cellKNN = NULL, kGenes = 1, geneKNN = NULL, old.fit = NULL,
-        mult = 1000, min.nmat.smat.correlation = 0.05, min.nmat.emat.correlation = 0.05,
+site.relative.velocity.estimates <- function (
+        emat, nmat, deltaT = 1, steady.state.cells = colnames(emat),
+        kCells = 10, cellKNN = NULL, kSites = 1, siteKNN = NULL, old.fit = NULL,
+        mult = 1000, min.nmat.emat.correlation = 0.05,
         min.nmat.emat.slope = 0.05, zero.offset = FALSE, deltaT2 = 1,delta_model="model 2",
-        fit.quantile = NULL, diagonal.quantiles = FALSE, show.gene = NULL,
+        fit.quantile = NULL, diagonal.quantiles = FALSE, show.site = NULL,
         cell.dist = NULL, emat.size = NULL, nmat.size = NULL,
         cell.emb = NULL, cell.colors = NULL, expression.gradient = NULL,
         residual.gradient = NULL, n.cores = 1, verbose = TRUE,nrows=2,
-        low_color="#FFCC15",high_color="#9933FF")
+        low_color="#FFCC15",high_color="#9933FF",point.size=3)
 {
-
+  point_shape=21
   if (!all(colnames(emat) == colnames(nmat)))
     stop("emat and nmat must have the same columns (cells)")
-  if (!is.null(smat)) {
-    if (!all(colnames(emat) == colnames(smat)))
-      stop("smat must have the same columns (cells) as emat")
-  }
+ 
   resl <- list()
   vg <- intersect(rownames(emat), rownames(nmat))
-  if (is.null(smat)) {
+  
     emat <- emat[vg, ]
     nmat <- nmat[vg, ]
-  }
-  else {
-    vg <- intersect(vg, rownames(smat))
-    emat <- emat[vg, ]
-    nmat <- nmat[vg, ]
-    smat <- smat[vg, ]
-  }
-  if (!is.null(show.gene)) {
-    if (!show.gene %in% rownames(emat)) {
-      stop(paste("gene", show.gene, "is not present in the filtered expression matrices"))
+  
+  if (!is.null(show.site)) {
+    if (!show.site %in% rownames(emat)) {
+      stop(paste("site", show.site, "is not present in the filtered expression matrices"))
     }
   }
   pcount <- 1
@@ -106,9 +81,7 @@ gene.relative.velocity.estimates <- function (
       cell.dist <- as.dist(cell.dist[cn, cn])
       emat <- emat[, cn]
       nmat <- nmat[, cn]
-      if (!is.null(smat)) {
-        smat <- smat[, cn]
-      }
+      
       cat("done\n")
     }
   }
@@ -163,70 +136,36 @@ gene.relative.velocity.estimates <- function (
   conv.nmat.norm <- t(t(conv.nmat)/conv.nmat.cs)
   emat.norm <- t(t(emat)/emat.cs)
   nmat.norm <- t(t(nmat)/nmat.cs)
-  if (kGenes > 1) {
-    if (is.null(geneKNN)){
-      if (!is.null(old.fit) && !is.null(old.fit$geneKNN)) {
-        geneKNN <- old.fit$geneKNN
+  if (kSites > 1) {
+    if (is.null(siteKNN)){
+      if (!is.null(old.fit) && !is.null(old.fit$siteKNN)) {
+        siteKNN <- old.fit$siteKNN
       }
       else {
-        cat("gene kNN ... ")
-        geneKNN <- balanced_knn(as.matrix(dist((log(as.matrix(conv.emat.norm) +
-                                    pcount)))), kGenes, kGenes * 1200, n.cores =n.cores)
-        diag(geneKNN) <- 1
+        cat("site kNN ... ")
+        siteKNN <- balanced_knn(as.matrix(dist((log(as.matrix(conv.emat.norm) +
+                                    pcount)))), kSites, kSites * 1200, n.cores =n.cores)
+        diag(siteKNN) <- 1
       }
     }
     
-    resl$geneKNN <- geneKNN
-    cat("Bayesian linear regression for each gene ... ")
+    resl$siteKNN <- siteKNN
+    cat("Bayesian linear regression for each site ... ")
     
-    scaledGeneKNN <- geneKNN/rowSums(geneKNN)
+    scaledSiteKNN <- siteKNN/rowSums(siteKNN)
     cat("calculate the prior information of the bayesian regression ... ")
-    conv.emat.norm_mean <- scaledGeneKNN %*% conv.emat.norm
-    conv.nmat.norm_mean <- scaledGeneKNN %*% conv.nmat.norm
+    conv.emat.norm_mean <- scaledSiteKNN %*% conv.emat.norm
+    conv.nmat.norm_mean <- scaledSiteKNN %*% conv.nmat.norm
     gama_prior_mean <- apply(conv.nmat.norm_mean/conv.emat.norm_mean, 1, function(x) mean(x,na.rm=TRUE))
     gama_prior_sd <- apply(conv.nmat.norm_mean/conv.emat.norm_mean, 1, function(x) sd(x,na.rm=TRUE))
     names(gama_prior_mean) <- names(gama_prior_sd) <- rownames(conv.emat.norm)
     cat("done\n")
   }
-  if (!is.null(smat)) {
-    if (kCells > 1) {
-      conv.smat <- smat %*% cellKNN[colnames(smat), colnames(smat)]
-    }
-    else {
-      conv.smat <- smat
-    }
-    conv.smat.cs <- Matrix::colSums(conv.smat)/mult
-    conv.smat.norm <- t(t(conv.smat)/conv.smat.cs)
-    colnames(conv.smat.norm) <- colnames(conv.emat.norm)
-    rownames(conv.smat.norm) <- rownames(conv.emat.norm)
-    if (kGenes > 1) {
-      conv.smat.norm <- scaledGeneKNN %*% conv.smat.norm
-      colnames(conv.smat.norm) <- colnames(conv.emat.norm)
-      rownames(conv.smat.norm) <- rownames(conv.emat.norm)
-    }
-    if (is.null(old.fit)) {
-      cat("fitting smat-based offsets ... ")
-      sfit <- data.frame(do.call(rbind, parallel::mclapply(sn(rownames(conv.emat.norm)),
-               function(gn) {
-                 df <- data.frame(n = (conv.nmat.norm[gn, steady.state.cells]),
-                                  e = (conv.emat.norm[gn, steady.state.cells]),
-                                  s = conv.smat.norm[gn, steady.state.cells])
-                 sd <- lm(n ~ s, data = df)
-                 r <- with(df[df$s > 0, ], cor(n, s, method = "spearman"),
-                           3)
-                 return(c(o = pmax(0, as.numeric(sd$coef[1])),
-                          s = as.numeric(sd$coef[2]), r = r))
-               }, mc.cores = n.cores, mc.preschedule = T)))
-      cat("done\n")
-    }
-    else {
-      sfit <- old.fit$sfit
-    }
-  }
+
   resl$conv.nmat.norm <- conv.nmat.norm
   resl$conv.emat.norm <- conv.emat.norm
-  if (!is.null(show.gene)) {
-    gn <- show.gene
+  if (!is.null(show.site)) {
+    gn <- show.site
     if (!is.null(cell.emb)) {
       cc <- intersect(rownames(cell.emb), colnames(conv.emat.norm))
       
@@ -238,10 +177,10 @@ gene.relative.velocity.estimates <- function (
       
       colnames(data.frame.s.ggplot2) <- c("PC1","PC2","color")
       spliced.plot <- ggplot(data.frame.s.ggplot2)+
-        aes(x = .data$PC1, y = .data$PC2, color = .data$color) + 
-        geom_point(alpha=1) + labs(x = "PC1",y = "PC2",title = paste0(show.gene," s"),colour="s")+ 
+        aes(x = .data$PC1, y = .data$PC2, fill = .data$color) + 
+        geom_point(alpha=1,shape=point_shape,size=point.size) + labs(x = "PC1",y = "PC2",title = paste0(show.site," s"),colour="s")+ 
         theme(plot.title = element_text(size=12,hjust=0.5))+
-        scale_color_gradient(low = low_color, high = high_color)
+        scale_fill_gradient(low = low_color, high = high_color)
       
       data.frame.u.ggplot2 <- as.data.frame(cell.emb[cc, 1])
       data.frame.u.ggplot2$PC1 <- cell.emb[cc, 1]
@@ -250,20 +189,14 @@ gene.relative.velocity.estimates <- function (
       data.frame.u.ggplot2 <- data.frame.u.ggplot2[,c("PC1","PC2","color")]
       colnames(data.frame.u.ggplot2) <- c("PC1","PC2","color")
       unspliced.plot <- ggplot(data.frame.s.ggplot2)+
-        aes(x = .data$PC1, y = .data$PC2, color = .data$color) + 
-        geom_point(alpha=1) + labs(x = "PC1",y = "PC2",title = paste0(show.gene," u"),colour="u")+ 
+        aes(x = .data$PC1, y = .data$PC2, fill = .data$color) + 
+        geom_point(alpha=1,shape=point_shape,size=point.size) + labs(x = "PC1",y = "PC2",title = paste0(show.site," u"),colour="u")+ 
         theme(plot.title = element_text(size=12,hjust=0.5))+
-        scale_color_gradient(low = low_color, high = high_color)
+        scale_fill_gradient(low = low_color, high = high_color)
       
     }
-    if (!is.null(smat)) {
-      df <- data.frame(n = (conv.nmat.norm[gn, steady.state.cells]),
-                       e = (conv.emat.norm[gn, steady.state.cells]),
-                       o = sfit[gn, "o"])
-      if (zero.offset)
-        df$o <- 0
-    }
-    else {
+
+    
       df <- data.frame(n = (conv.nmat.norm[gn, steady.state.cells]),
                        e = (conv.emat.norm[gn, steady.state.cells]))
       o <- 0
@@ -275,7 +208,8 @@ gene.relative.velocity.estimates <- function (
         }
       }
       df$o <- o
-    }
+    
+    
     d <- lm(n ~ e + offset(o) + 0, data = df, weights = df$e^4 +
               df$n^4)
     cell.col <- ac(rep(1, nrow(df)), alpha = 0.1)
@@ -301,29 +235,19 @@ gene.relative.velocity.estimates <- function (
           nmax <- max(max(df$n), 0.001)
         x <- df$e/emax + df$n/nmax
         eq <- quantile(x, p = c(fit.quantile, 1 - fit.quantile))
-        if (!is.null(smat)) {
-          pw <- as.numeric(x >= eq[2])
-        }
-        else {
-          pw <- as.numeric(x >= eq[2] | x <= eq[1])
-        }
+
+        pw <- as.numeric(x >= eq[2] | x <= eq[1])
+        
       }
       else {
         eq <- quantile(df$e, p = c(fit.quantile, 1 -
                                      fit.quantile))
-        if (!is.null(smat) || zero.offset) {
-          pw <- as.numeric(df$e >= eq[2])
-        }
-        else {
+        
           pw <- as.numeric(df$e >= eq[2] | df$e <= eq[1])
-        }
+        
       }
-      if (!is.null(smat) || zero.offset) {
-        d <- lm(n ~ e + offset(o) + 0, data = df, weights = pw)
-      }
-      else {
+      
         d <- lm(n ~ e, data = df, weights = pw)
-      }
     }
     df <- df[order(df$e, decreasing = T), ]
     data.frame.fit.line.ggplot2 <- df
@@ -334,10 +258,10 @@ gene.relative.velocity.estimates <- function (
     colnames(data.frame.fit.line.ggplot2) <- c("e","pred")
     fit.plot <- ggplot()+
         geom_point(data=data.frame.fit.ggplot2,aes(x = .data$PC1, y = .data$PC2,
-                  color = .data$color), alpha = 0.5) +
+                  fill = .data$color), alpha = 0.5,shape=point_shape,size=point.size) +
       geom_line(data=data.frame.fit.line.ggplot2,aes(x = .data$e, y = .data$pred),
                 color = "red",linetype= 2)+
-      labs(x = "s",y = "u",title = paste0(show.gene," fit"))+ 
+      labs(x = "s",y = "u",title = paste0(show.site," fit"))+ 
       theme( plot.title = element_text(size=12,hjust=0.5))#legend.position =" none ",
     
     if (!is.null(cell.emb)) {
@@ -348,10 +272,10 @@ gene.relative.velocity.estimates <- function (
       data.frame.resid.ggplot2 <- data.frame.resid.ggplot2[, c("PC1","PC2","color")]
       colnames(data.frame.resid.ggplot2) <- c("PC1","PC2","color")
       resid.plot <- ggplot(data.frame.resid.ggplot2)+
-        aes(x = .data$PC1, y = .data$PC2, color = .data$color) + 
-        geom_point(alpha=1) + labs(x = "PC1",y = "PC2",title = paste0(show.gene," resid"),colour="resid")+ 
-        theme(plot.title = element_text(size=12,hjust=0.5))+
-        scale_color_gradient(low = low_color, high = high_color)
+        aes(x = .data$PC1, y = .data$PC2, fill = .data$color) + 
+        geom_point(alpha=1,shape=point_shape,size=point.size) + labs(x = "PC1",y = "PC2",title = paste0(show.site," resid"),colour="resid")+ 
+        theme(plot.title = element_text(size=12,hjust=0.5))+ 
+        scale_fill_gradient(low = low_color, high = high_color)
       
       combine_plot <- cowplot::plot_grid(spliced.plot, unspliced.plot, fit.plot, 
                                          resid.plot, nrow=nrows,labels = LETTERS[1:4])#spliced.plot, unspliced.plot,
@@ -362,14 +286,7 @@ gene.relative.velocity.estimates <- function (
   if (is.null(old.fit)) {
     ko <- data.frame(do.call(rbind, parallel::mclapply(sn(rownames(conv.emat.norm)),
            function(gn) {
-             if (!is.null(smat)) {
-               df <- data.frame(n = (conv.nmat.norm[gn, steady.state.cells]),
-                                e = (conv.emat.norm[gn, steady.state.cells]),
-                                o = sfit[gn, "o"])
-               if (zero.offset)
-                 df$o <- 0
-             }
-             else {
+             
                df <- data.frame(n = (conv.nmat.norm[gn, steady.state.cells]),
                                 e = (conv.emat.norm[gn, steady.state.cells]))
                o <- 0
@@ -380,12 +297,13 @@ gene.relative.velocity.estimates <- function (
                  }
                }
                df$o <- o
-             }
+             
              if (is.null(fit.quantile)) {
                  d <- lm(n ~ e + offset(o) + 0, data = df, weights = df$e^4 +
                            df$n^4)
+                 pw <- rep(df$n,length(df$n))
                  return(c(o = df$o[1], g = as.numeric(coef(d)[1]),
-                          r = cor(df$e, df$n, method = "spearman")))
+                          r = cor(df$e, df$n, method = "spearman"),pw))
              }
              else {
                if (diagonal.quantiles) {
@@ -398,38 +316,26 @@ gene.relative.velocity.estimates <- function (
                  x <- df$e/emax + df$n/nmax
                  eq <- quantile(x, p = c(fit.quantile, 1 -
                                            fit.quantile))
-                 if (!is.null(smat)) {
-                   pw <- as.numeric(x >= eq[2])
-                 }
-                 else {
+                 
                    pw <- as.numeric(x >= eq[2] | x <= eq[1])
-                 }
+                 
                }
                else {
                  eq <- quantile(df$e, p = c(fit.quantile,
                                             1 - fit.quantile))
-                 if (!is.null(smat) || zero.offset) {
-                   pw <- as.numeric(df$e >= eq[2])
-                 }
-                 else {
+                 
                    pw <- as.numeric(df$e >= eq[2] | df$e <=
                                       eq[1])
-                 }
+                 
                }
-               if (!is.null(smat) || zero.offset) {
-                 d <- lm(n ~ e + offset(o) + 0, data = df,
-                         weights = pw)
-                 return(c(o = df$o[1], g = as.numeric(coef(d)[1]),
-                          r = cor(df$e, df$n, method = "spearman")))
-               }
-               else {
+               
                  d <- lm(n ~ e, data = df, weights = pw)
                  return(c(o = as.numeric(coef(d)[1]), g = as.numeric(coef(d)[2]),
-                          r = cor(df$e, df$n, method = "spearman")))
-               }
+                          r = cor(df$e, df$n, method = "spearman"),pw))
+               
              }
              
-             if (kGenes>1){
+             if (kSites>1){
                mean_prior <- gama_prior_mean[gn]
                sd_prior <- gama_prior_sd[gn]
                data_list <- list(y = df$n-df$o, x = df$e)
@@ -448,34 +354,28 @@ gene.relative.velocity.estimates <- function (
                update(model, 1000)
                samples <- rjags::coda.samples(model, variable.names =  "beta1", n.iter = 5000)
                samples_s <- summary(samples)
+               pw <- rep(df$n,length(df$n))
                return(c(o = df$o[1], g = as.numeric(samples_s$statistics[1]),
-                        r = cor(df$e, df$n, method = "spearman")))
+                        r = cor(df$e, df$n, method = "spearman"),pw))
              }
              
            }, mc.cores = n.cores, mc.preschedule = T)))
+    
     ko <- na.omit(ko)
-    cat("done. succesfful fit for", nrow(ko), "genes\n")
+    cat("done. succesfful fit for", nrow(ko), "sites\n")
   }
   else {
     full.ko <- ko <- na.omit(old.fit$ko)
   }
-  if (!is.null(smat)) {
-    sfit <- na.omit(sfit)
-    ko <- ko[rownames(ko) %in% rownames(sfit), ]
-    vi <- sfit$r > min.nmat.smat.correlation
-    ko <- ko[vi, ]
-    if (!all(vi))
-      cat("filtered out", sum(!vi), "out of", length(vi),
-          "genes due to low nmat-smat correlation\n")
-  }
+  
   full.ko <- ko
   vi <- ko$r > min.nmat.emat.correlation
   if (!all(vi))
-    cat("filtered out", sum(!vi), "out of", length(vi), "genes due to low nmat-emat correlation\n")
+    cat("filtered out", sum(!vi), "out of", length(vi), "sites due to low nmat-emat correlation\n")
   ko <- ko[vi, ]
   vi <- ko$g > min.nmat.emat.slope
   if (!all(vi))
-    cat("filtered out", sum(!vi), "out of", length(vi), "genes due to low nmat-emat slope\n")
+    cat("filtered out", sum(!vi), "out of", length(vi), "sites due to low nmat-emat slope\n")
   ko <- ko[vi, ]
   gamma <- ko$g
   offset <- ko$o
@@ -503,11 +403,13 @@ gene.relative.velocity.estimates <- function (
                                mult = mult, delta = deltaT2)
   cat("done\n")
   full.ko$valid <- rownames(full.ko) %in% rownames(ko)
+  colnames(full.ko)[-c(1,2,3,length(colnames(full.ko)))] <- paste0("cell_",1:(length(colnames(full.ko))-4))
+  pw.data.frame <- full.ko[,paste0("cell_",1:(length(colnames(full.ko))-4))]
+  cell.use.list <- apply(pw.data.frame,1,function(x) which(x==1))
+  full.ko <-full.ko[,c("o","g","r","valid")]
   resl <- c(resl, list(projected = emn, current = emat.norm,
                        deltaE = deltaE, deltaT = deltaT, ko = full.ko, mult = mult,
-                       kCells = kCells,kGenes = kGenes))
-  if (!is.null(smat)) {
-    resl$sfit <- sfit
-  }
+                       kCells = kCells,kSites = kSites,cell.use.list=cell.use.list))
+  
   return(resl)
 }

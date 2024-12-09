@@ -5,7 +5,9 @@
 \title{PCA-based visualization of the velocities}
 \usage{
 pca.velocity.plot(
-  vel,
+  current,
+  projected,
+  deltaE,
   nPcs = 4,
   cell.colors = NULL,
   scale = "log",
@@ -27,11 +29,17 @@ pca.velocity.plot(
   max.grid.arrow.length = NULL,
   n.cores = 1,
   point.size = 3,
+  cell.border.alpha = 0.5,
+  arrow_size = 0.3,
   ...
 )
 }
 \arguments{
-\item{vel}{velocity estimation (gene-relative or global)}
+\item{current}{current matrix}
+
+\item{projected}{projected matrix}
+
+\item{deltaE}{deltaE matrix}
 
 \item{nPcs}{number of successive PCs to visualize}
 
@@ -74,6 +82,10 @@ pca.velocity.plot(
 \item{n.cores}{number of cores to use in the calculations}
 
 \item{point.size}{size of the point}
+
+\item{cell.border.alpha}{transparency for the cell border}
+
+\item{arrow_size}{size of arrow}
 
 \item{...}{extra parameters are passed to plot() function}
 }

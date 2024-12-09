@@ -6,7 +6,9 @@
 \usage{
 show.velocity.on.embedding.eu(
   emb,
-  vel,
+  current,
+  projected,
+  deltaE,
   n = 30,
   embedding.knn = TRUE,
   cell.colors = NULL,
@@ -28,19 +30,24 @@ show.velocity.on.embedding.eu(
   fixed.arrow.length = FALSE,
   plot.grid.points = FALSE,
   control.for.neighborhood.density = TRUE,
-  do.par = T,
   cell.dist = NULL,
   return.details = FALSE,
   expression.scaling = FALSE,
   cell.border.alpha = 0.5,
   n.cores = 1,
+  point.size = 3,
+  arrow_size = 0.3,
   ...
 )
 }
 \arguments{
 \item{emb}{embedding to be used for projection}
 
-\item{vel}{velocity result}
+\item{current}{current matrix}
+
+\item{projected}{projected matrix}
+
+\item{deltaE}{deltaE matrix}
 
 \item{n}{neighborhood size (default=30)}
 
@@ -84,8 +91,6 @@ show.velocity.on.embedding.eu(
 
 \item{control.for.neighborhood.density}{compensate for cell density variations in the embedding (default: TRUE)}
 
-\item{do.par}{whether to reset plotting parameters (default=TRUE)}
-
 \item{cell.dist}{\itemize{
 \item optional custom distance (must include all of the cells that are intersecting between emb and vel)
 }}
@@ -97,6 +102,10 @@ show.velocity.on.embedding.eu(
 \item{cell.border.alpha}{trasparency parameter to apply when showing cell colors}
 
 \item{n.cores}{number of cores to use in calculations}
+
+\item{point.size}{size of the point}
+
+\item{arrow_size}{size of arrow}
 
 \item{...}{extra parameters are passed to the plot() function}
 }

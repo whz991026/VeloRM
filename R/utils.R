@@ -25,6 +25,23 @@ t.get.projected.cell2 <- function(em,cellSize,deltae,mult=1e3,delta=1) {
   emn
 }
 
+sizeFactor <- function(data, narm=FALSE) {
+  # make the elements no smaller than 0
+  data <- as.matrix(data)
+  
+  
+  # first log
+  log_data <- log(data)
+  log_data [is.infinite(log_data)] <- NA
+  log_mean <- rowMeans(log_data, na.rm=narm)
+  log_s <- log_data-log_mean
+  
+  # then exp
+  s_size <- exp(apply(log_s,2,function(x)median(x,na.rm=TRUE)))
+  return(s_size)
+}
+
+
 
 # estimate projected delta under model 1
 #
@@ -337,14 +354,14 @@ val2col <- function(x,gradientPalette=NULL,zlim=NULL,gradient.range.quantile=0.9
   gp
 }
 
-##' Filter genes by requirining minimum average expression within at least one of the provided cell clusters
+##' Filter sites by requirining minimum average expression within at least one of the provided cell clusters
 ##'
 ##' @param emat spliced (exonic) count matrix
 ##' @param clusters named cell factor defining clusters
 ##' @param min.max.cluster.average required minimum average expression count (no normalization is perfomed)
 ##' @return filtered emat matrix
 ##' @export
-filter.genes.by.cluster.expression <- function(emat,clusters,min.max.cluster.average=0.1) {
+filter.sites.by.cluster.expression <- function(emat,clusters,min.max.cluster.average=0.1) {
   if(!any(colnames(emat) %in% names(clusters))) stop("provided clusters do not cover any of the emat cells!")
   vc <- intersect(colnames(emat),names(clusters))
   cl.emax <- apply(do.call(cbind,tapply(vc,as.factor(clusters[vc]),function(ii) Matrix::rowMeans(emat[,ii]))),1,max)
@@ -360,8 +377,10 @@ filter.genes.by.cluster.expression <- function(emat,clusters,min.max.cluster.ave
 #' @param iteration the number of step
 #' @param scale scale the density or not "linear" or "log"
 #' @param log_unit the hyper parameter of the log scale
-#' @param low_color the hyper-parameter for show gene low color
-#' @param high_color the hyper-parameter for show gene high color
+#' @param low_color the hyper-parameter for show site low color
+#' @param high_color the hyper-parameter for show site high color
+#' @param point.size size of the point
+#' @param cell.border.alpha transparency for the cell border
 #' 
 #' @import ggplot2
 #' @importFrom stats density 
@@ -370,7 +389,8 @@ filter.genes.by.cluster.expression <- function(emat,clusters,min.max.cluster.ave
 #' @export
 #'
 diffusion_density_plot <- function(emb,tp,forward=TRUE,iteration=1000,scale="linear",
-                                   log_unit=1e-5,low_color="#FFCC15",high_color="#9933FF"){
+                                   log_unit=1e-5,low_color="#FFCC15",high_color="#9933FF",
+                                   point.size=2,cell.border.alpha=1){
   ccells <- intersect(rownames(emb),rownames(tp));
   emb <- emb[ccells,];tp <- tp[ccells,ccells]
   
@@ -412,8 +432,19 @@ diffusion_density_plot <- function(emb,tp,forward=TRUE,iteration=1000,scale="lin
   
   polot_ggplot2 <- ggplot(data.frame.plot)+
     aes(x = .data$dim1, y = .data$dim2, color = .data$density) + 
-    geom_point() +
+    geom_point(size=point.size,alpha=cell.border.alpha) +
     scale_color_gradient(low = low_color, high = high_color)
+  
+  if (forward==TRUE){
+    polot_ggplot2 <- polot_ggplot2 +
+      labs(title="forward")+ 
+      theme(plot.title=element_text(size=12,hjust=0.5))
+  } else{
+    polot_ggplot2 <- polot_ggplot2 +
+      labs(title="backward")+ 
+      theme(plot.title=element_text(size=12,hjust=0.5))
+  }
+  
   
   polot_ggplot2
 }
