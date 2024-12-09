@@ -25,3 +25,5 @@ Suggests:
     knitr,
     rmarkdown
 VignetteBuilder: knitr
+URL: https://github.com/whz991026/velocyto.r.mine
+BugReports: https://github.com/whz991026/velocyto.r.mine/issues
