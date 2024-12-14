@@ -16,6 +16,7 @@ methylation.site.relative.velocity.estimates(
   old.fit = NULL,
   mult = 1000,
   min.nmat.emat.correlation = 0.05,
+  p_value = TRUE,
   min.nmat.emat.slope = 0.05,
   zero.offset = FALSE,
   deltaT2 = 1,
@@ -86,6 +87,8 @@ methylation.site.relative.velocity.estimates(
 \item{min.nmat.emat.correlation}{\itemize{
 \item minimum required Spearman rank correlation between n and e counts of a site
 }}
+
+\item{p_value}{calculate the p-value or not}
 
 \item{min.nmat.emat.slope}{\itemize{
 \item minimum sloope of n~e regression

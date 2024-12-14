@@ -11,6 +11,7 @@
 ##' @param old.fit - optional old result (in this case the slopes and offsets won't be recalculated, and the same kNN graphs will be used)
 ##' @param mult - library scaling factor (1e6 in case of FPM)
 ##' @param min.nmat.emat.correlation - minimum required Spearman rank correlation between n and e counts of a site
+##' @param p_value calculate the p-value or not
 ##' @param min.nmat.emat.slope - minimum sloope of n~e regression
 ##' @param zero.offset - should offset be set to zero
 ##' @param deltaT2 - scaling of the projected difference vector (normally should be set to 1)
@@ -47,7 +48,7 @@
 methylation.site.relative.velocity.estimates <- function (
     test.list, control.list, deltaT = 1, steady.state.cells = colnames(test.list[[1]]),
     kCells = 5, cellKNN = NULL, kSites = 1, siteKNN = NULL, old.fit = NULL,
-    mult = 1000, min.nmat.emat.correlation = 0.05,
+    mult = 1000, min.nmat.emat.correlation = 0.05,p_value=TRUE,
     min.nmat.emat.slope = 0.05, zero.offset = FALSE, deltaT2 = 1,delta_model="model 2",
     fit.quantile = NULL, diagonal.quantiles = FALSE, show.site = NULL,
     cell.dist = NULL, emat.size = NULL, nmat.size = NULL,
@@ -143,37 +144,48 @@ methylation.site.relative.velocity.estimates <- function (
   unmeth_result[["current_intersect"]]<- unmeth_result[["current"]][index_intersect,]
   unmeth_result[["deltaE_intersect"]]<- unmeth_result[["deltaE"]][index_intersect,]
   
-
-  cat("calculating P-value ... ")
-  
-  # calculate the P-value
-  meth_y_value <- meth_result[["conv.emat.norm"]][index_intersect,]-meth_result[["ko"]][index_intersect,1]
-  unmeth_y_value <- unmeth_result[["conv.emat.norm"]][index_intersect,]-unmeth_result[["ko"]][index_intersect,1]
-  meth_x_value <- meth_result[["conv.nmat.norm"]][index_intersect,]
-  unmeth_x_value <- unmeth_result[["conv.nmat.norm"]][index_intersect,]
-  
-  
-  
-  # create data frame to calculate the p-value
-  p_value <- c()
-  for (i in 1:dim(meth_y_value)[1]){
-    union_cell <- union(meth_result[["cell.use.list"]][index_intersect][[i]],
-                        unmeth_result[["cell.use.list"]][index_intersect][[i]])
-    data.frame.pvalue <- as.data.frame(cbind(c(meth_y_value[i,union_cell],unmeth_y_value[i,union_cell]),
-                                             c(meth_x_value[i,union_cell],unmeth_x_value[i,union_cell]),
-                               rep(c("meth","unmeth"),c(length(union_cell),length(union_cell)))))
-  
-    colnames(data.frame.pvalue) <- c("y","x","var")
-    data.frame.pvalue$var <- as.character(data.frame.pvalue$var)
-    data.frame.pvalue$x <- as.numeric(data.frame.pvalue$x)
-    data.frame.pvalue$y <- as.numeric(data.frame.pvalue$y)
+  if (p_value==TRUE){
+    cat("calculating P-value ... ")
     
-    lm_res <- lm(y~ 0 + x + var, data = data.frame.pvalue)
-    anova_result <- anova(lm_res)
-    p_value[i] <- anova_result["var","Pr(>F)"]
+    # Initialize vector to store p-values
+    p_value <- c()
+    
+    # Loop over rows of the data
+    for (i in 1:dim(meth_y_value)[1]) {
+      # Extract the cells for meth and unmeth separately
+      meth_cells <- meth_result[["cell.use.list"]][index_intersect][[i]]
+      unmeth_cells <- unmeth_result[["cell.use.list"]][index_intersect][[i]]
+      
+      # Create the data frame with separate observations for meth and unmeth
+      data.frame.pvalue <- as.data.frame(rbind(
+        data.frame(y = meth_y_value[i, meth_cells], 
+                   x = meth_x_value[i, meth_cells], 
+                   var = "meth"),
+        data.frame(y = unmeth_y_value[i, unmeth_cells], 
+                   x = unmeth_x_value[i, unmeth_cells], 
+                   var = "unmeth")
+      ))
+      
+      # Ensure columns are correctly typed
+      data.frame.pvalue$var <- as.character(data.frame.pvalue$var)
+      data.frame.pvalue$x <- as.numeric(data.frame.pvalue$x)
+      data.frame.pvalue$y <- as.numeric(data.frame.pvalue$y)
+      
+      # Perform linear modeling
+      lm_res <- lm(y ~ 0 + x + var, data = data.frame.pvalue)
+      
+      # Extract p-value from ANOVA
+      anova_result <- anova(lm_res)
+      p_value[i] <- anova_result["var", "Pr(>F)"]
+    }
+    
+    # Name the p-values by the intersected indices
+    names(p_value) <- index_intersect
+    
+    cat("done\n")
   }
-  names(p_value) <- index_intersect
-  cat("done\n")
+  
+  
   
   # calculate the methylation level
   cat("calculating methylation level ... ")
@@ -218,11 +230,11 @@ methylation.site.relative.velocity.estimates <- function (
                           (unmeth_result[["current"]][index_intersect,]+
                              meth_result[["current"]][index_intersect,]+epsilon_RR))  /
                          control_information_Beta[index_intersect])
-    TCR_current <- max(((meth_result[["current"]][index_intersect,]+epsilon_TCR)/
+    TCR_current <- ((meth_result[["current"]][index_intersect,]+epsilon_TCR)/
                           (unmeth_result[["current"]][index_intersect,]
                            +meth_result[["current"]][index_intersect,]+epsilon_TCR))- 
-                         control_information_Beta[index_intersect],0)
-    
+                         control_information_Beta[index_intersect]
+    TCR_current[TCR_current<=0] <- 0
     
     OR_projected <- log2(((meth_result[["projected"]][index_intersect,]+epsilon_OR)/
                           (unmeth_result[["projected"]][index_intersect,]+epsilon_OR))  /
@@ -231,11 +243,12 @@ methylation.site.relative.velocity.estimates <- function (
                           (unmeth_result[["projected"]][index_intersect,]+
                              meth_result[["projected"]][index_intersect,]+epsilon_RR))  /
                          control_information_Beta[index_intersect])
-    TCR_projected <- max(((meth_result[["projected"]][index_intersect,]+epsilon_TCR)/
+    TCR_projected <- ((meth_result[["projected"]][index_intersect,]+epsilon_TCR)/
                           (unmeth_result[["projected"]][index_intersect,]
                            +meth_result[["projected"]][index_intersect,]+epsilon_TCR))- 
-                           control_information_Beta[index_intersect],0)
-  
+                           control_information_Beta[index_intersect]
+    
+    TCR_projected[TCR_projected<=0] <- 0
     OR_delta <- OR_projected - OR_current
     RR_delta <- RR_projected - RR_current
     TCR_delta <- TCR_projected - TCR_current

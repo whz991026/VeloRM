@@ -212,17 +212,17 @@ methylation.sites.preprocess <- function(test.list, control.list=NULL,ambiguous.
     spliced_methylation_M_value_meta_control <- log2((spliced.meth.control.sum+epsilon_M)/(spliced.unmeth.control.sum+epsilon_M))
     unspliced_methylation_M_value_meta_control <- log2((unspliced.meth.control.sum+epsilon_M)/(unspliced.unmeth.control.sum+epsilon_M))
     
-    spliced_methylation_RR_value_meta <- (spliced_methylation_Beta_value_meta+epsilon_RR)/
-      (spliced_methylation_Beta_value_meta_control+epsilon_RR)
-    spliced_methylation_OR_value_meta <- (2^spliced_methylation_M_value_meta+epsilon_RR)/
-      (2^spliced_methylation_M_value_meta_control+epsilon_OR)
+    spliced_methylation_RR_value_meta <- log2((spliced_methylation_Beta_value_meta+epsilon_RR)/
+      (spliced_methylation_Beta_value_meta_control+epsilon_RR))
+    spliced_methylation_OR_value_meta <- log2((2^spliced_methylation_M_value_meta+epsilon_RR)/
+      (2^spliced_methylation_M_value_meta_control+epsilon_OR))
     spliced_methylation_TCR_value_meta <- spliced_methylation_Beta_value_meta-spliced_methylation_Beta_value_meta_control
     spliced_methylation_TCR_value_meta [spliced_methylation_TCR_value_meta<0] <- 0
     
-    unspliced_methylation_RR_value_meta <- (unspliced_methylation_Beta_value_meta+epsilon_RR)/
-      (unspliced_methylation_Beta_value_meta_control+epsilon_RR)
-    unspliced_methylation_OR_value_meta <- (2^unspliced_methylation_M_value_meta+epsilon_RR)/
-      (2^unspliced_methylation_M_value_meta_control+epsilon_OR)
+    unspliced_methylation_RR_value_meta <- log2((unspliced_methylation_Beta_value_meta+epsilon_RR)/
+      (unspliced_methylation_Beta_value_meta_control+epsilon_RR))
+    unspliced_methylation_OR_value_meta <- log2((2^unspliced_methylation_M_value_meta+epsilon_RR)/
+      (2^unspliced_methylation_M_value_meta_control+epsilon_OR))
     unspliced_methylation_TCR_value_meta <- unspliced_methylation_Beta_value_meta-unspliced_methylation_Beta_value_meta_control
     unspliced_methylation_TCR_value_meta [unspliced_methylation_TCR_value_meta<0] <- 0
     

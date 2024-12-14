@@ -117,8 +117,8 @@ site.relative.velocity.estimates <- function (
     }
     rm(emat.log.norm)
     cat("calculating convolved matrices ... ")
-    conv.emat <- emat %*% cellKNN[colnames(emat), colnames(emat)]
-    conv.nmat <- nmat %*% cellKNN[colnames(nmat), colnames(nmat)]
+    conv.emat <- as.matrix(emat) %*% cellKNN[colnames(emat), colnames(emat)]
+    conv.nmat <- as.matrix(nmat) %*% cellKNN[colnames(nmat), colnames(nmat)]
     conv.emat.cs <- (emat.cs %*% cellKNN[colnames(emat),
                                          colnames(emat)])[1, ]
     conv.nmat.cs <- (nmat.cs %*% cellKNN[colnames(nmat),
