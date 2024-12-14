@@ -146,7 +146,12 @@ methylation.site.relative.velocity.estimates <- function (
   
   if (p_value==TRUE){
     cat("calculating P-value ... ")
-    
+    meth_y_value <- meth_result[["conv.nmat.norm"]][index_intersect,]-meth_result[["ko"]][index_intersect,1]   
+    #meth_y_value [meth_y_value<=0] <- 0
+    unmeth_y_value <- unmeth_result[["conv.nmat.norm"]][index_intersect,]-unmeth_result[["ko"]][index_intersect,1]   
+    #unmeth_y_value [unmeth_y_value<=0] <- 0
+    meth_x_value <- meth_result[["conv.emat.norm"]][index_intersect,]   
+    unmeth_x_value <- unmeth_result[["conv.emat.norm"]][index_intersect,]  
     # Initialize vector to store p-values
     p_value <- c()
     
@@ -172,7 +177,7 @@ methylation.site.relative.velocity.estimates <- function (
       data.frame.pvalue$y <- as.numeric(data.frame.pvalue$y)
       
       # Perform linear modeling
-      lm_res <- lm(y ~ 0 + x + var, data = data.frame.pvalue)
+      lm_res <- lm(y ~ + x + var, data = data.frame.pvalue)
       
       # Extract p-value from ANOVA
       anova_result <- anova(lm_res)
