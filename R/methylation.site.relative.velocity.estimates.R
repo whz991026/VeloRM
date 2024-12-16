@@ -172,16 +172,15 @@ methylation.site.relative.velocity.estimates <- function (
       ))
       
       # Ensure columns are correctly typed
-      data.frame.pvalue$var <- as.character(data.frame.pvalue$var)
+      data.frame.pvalue$var <- as.factor(data.frame.pvalue$var)
       data.frame.pvalue$x <- as.numeric(data.frame.pvalue$x)
       data.frame.pvalue$y <- as.numeric(data.frame.pvalue$y)
       
+      lm_res <- lm(y ~ 0 + x :var, data = data.frame.pvalue)
       # Perform linear modeling
-      lm_res <- lm(y ~ + x + var, data = data.frame.pvalue)
-      
-      # Extract p-value from ANOVA
-      anova_result <- anova(lm_res)
-      p_value[i] <- anova_result["var", "Pr(>F)"]
+      lm_res_null <- lm(y ~ 0 + x, data = data.frame.pvalue)
+      anova_result <- anova(lm_res_null, lm_res)
+      p_value[i] <- anova_result["2", "Pr(>F)"]
     }
     
     # Name the p-values by the intersected indices
@@ -201,7 +200,7 @@ methylation.site.relative.velocity.estimates <- function (
     (unmeth_result[["current"]][index_intersect,]+epsilon_M))
   
   Beta_value_projected <- meth_result[["projected"]][index_intersect,]/
-    (meth_result[["current"]][index_intersect,]+unmeth_result[["projected"]][index_intersect,]+epsilon_Beta)
+    (meth_result[["projected"]][index_intersect,]+unmeth_result[["projected"]][index_intersect,]+epsilon_Beta)
   M_value_projected <- log2((meth_result[["projected"]][index_intersect,]+epsilon_M)/
                             (unmeth_result[["projected"]][index_intersect,]+epsilon_M))
   Beta_value_delta <- Beta_value_projected - Beta_value_current

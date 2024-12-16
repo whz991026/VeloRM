@@ -49,11 +49,13 @@ show.velocity.on.embedding.cor <- function(emb,current,projected,deltaE,n=100,ce
                                            expression.scaling=FALSE,point.size=3,arrow_size=0.3,  ...) {
   options(warn = -1)
   randomize <- FALSE;
-  celcol <- 'white'
-  if(is.null(show.cell)) { celcol <- cell.colors[rownames(emb)]; names(celcol) <- rownames(emb) }
-  
-  
   em <- as.matrix(current);
+  if(is.null(cell.colors)) { cell.colors <- ac(rep(1,ncol(em)),alpha=0.3); names(cell.colors) <- colnames(em) }
+    celcol <- 'white'
+  if(is.null(show.cell)) { celcol <- cell.colors[rownames(emb)] }
+  
+  
+  
   ccells <- intersect(rownames(emb),colnames(em));
   em <- em[,ccells]; emb <- emb[ccells,]
   nd <- as.matrix(deltaE[,ccells])
