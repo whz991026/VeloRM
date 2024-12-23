@@ -20,7 +20,7 @@ It shows how to estimate site-relative velocity (with different pooling options)
 
 Load the velocyto package:
 ```{r}
-library(velocyto.r.mine)
+library(VeloRM)
 ```
 
 Load the data and genome annotations:

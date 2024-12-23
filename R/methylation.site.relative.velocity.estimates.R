@@ -153,7 +153,7 @@ methylation.site.relative.velocity.estimates <- function (
     meth_x_value <- meth_result[["conv.emat.norm"]][index_intersect,]   
     unmeth_x_value <- unmeth_result[["conv.emat.norm"]][index_intersect,]  
     # Initialize vector to store p-values
-    p_value <- c()
+    p_value <- list()
     
     # Loop over rows of the data
     for (i in 1:dim(meth_y_value)[1]) {
@@ -180,7 +180,7 @@ methylation.site.relative.velocity.estimates <- function (
       # Perform linear modeling
       lm_res_null <- lm(y ~ 0 + x, data = data.frame.pvalue)
       anova_result <- anova(lm_res_null, lm_res)
-      p_value[i] <- anova_result["2", "Pr(>F)"]
+      p_value[[i]] <- anova_result
     }
     
     # Name the p-values by the intersected indices
