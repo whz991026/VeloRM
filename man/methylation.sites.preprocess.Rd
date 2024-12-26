@@ -11,7 +11,8 @@ methylation.sites.preprocess(
   epsilon_M = 1e-07,
   epsilon_Beta = 1,
   epsilon_RR = 1e-07,
-  epsilon_OR = 1e-07
+  epsilon_OR = 1e-07,
+  threshold = 0
 )
 }
 \arguments{
@@ -34,6 +35,8 @@ methylation.unspliced, unmethylation.unspliced,methylation.ambiguous, unmethylat
 \item{epsilon_RR}{epsilon to calculate the RR}
 
 \item{epsilon_OR}{epsilon to calculate the OR}
+
+\item{threshold}{the mean reads counts to filter the site, default is 0}
 }
 \value{
 a list(test.return,control.return,index.site1,index.site2)

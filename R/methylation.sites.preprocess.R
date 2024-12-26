@@ -9,6 +9,7 @@
 #' @param epsilon_Beta epsilon to calculate the Beta
 #' @param epsilon_RR epsilon to calculate the RR
 #' @param epsilon_OR epsilon to calculate the OR
+#' @param threshold the mean reads counts to filter the site, default is 0
 #' 
 #' @return a list(test.return,control.return,index.site1,index.site2)
 #'  1. test.return: a list of the test cells, with four data.frame of the methylation.spliced, 
@@ -20,7 +21,8 @@
 #' @export
 #'
 methylation.sites.preprocess <- function(test.list, control.list=NULL,ambiguous.as.spliced=NA,
-                                         epsilon_M=1e-7,epsilon_Beta=1,epsilon_RR=1e-7,epsilon_OR=1e-7){
+                                         epsilon_M=1e-7,epsilon_Beta=1,epsilon_RR=1e-7,epsilon_OR=1e-7,
+                                         threshold=0){
   # check length of list
   if (length(test.list)!=6)
     stop("the length of test list need to be 6")
@@ -177,14 +179,32 @@ methylation.sites.preprocess <- function(test.list, control.list=NULL,ambiguous.
   index.4 <- vg.test [which(spliced.meth.test.sum!=0&unspliced.meth.test.sum!=0)]
   
   
+  # the site methylation only occurs at unspliced RNA
+  index.1.threshold <- vg.test [which(spliced.meth.test.sum<=(threshold*dim(test.list[[1]])[1])&
+                                        unspliced.meth.test.sum>(threshold*dim(test.list[[1]])[1]))]
+  # the site methylation only occurs at spliced RNA
+  index.2.threshold <- vg.test [which(spliced.meth.test.sum<=(threshold*dim(test.list[[1]])[1])&
+                                        unspliced.meth.test.sum>(threshold*dim(test.list[[1]])[1]))]
+  # the site without methylation 
+  index.3.threshold <- vg.test [which(spliced.meth.test.sum<=(threshold*dim(test.list[[1]])[1])&
+                                        unspliced.meth.test.sum<=(threshold*dim(test.list[[1]])[1]))]
+  # the site methylation occurs at both spliced and unspliced RNA
+  index.4.threshold <- vg.test [which(spliced.meth.test.sum>(threshold*dim(test.list[[1]])[1])&
+                                        unspliced.meth.test.sum>(threshold*dim(test.list[[1]])[1]))]
+  
+  
   # filter the site by sub-four class
   
   if (!is.na(ambiguous.as.spliced)){
     spliced.unmeth.test.sum.index.4 <- rowSums(test.list[[2]][index.4,]+round(ambiguous.as.spliced*test.list[[6]][index.4,])) 
     unspliced.unmeth.test.sum.index.4 <- rowSums(test.list[[4]][index.4,]+round((1-ambiguous.as.spliced)*test.list[[6]][index.4,]))
+    spliced.unmeth.test.sum.index.4.threshold <- rowSums(test.list[[2]][index.4.threshold,]+round(ambiguous.as.spliced*test.list[[6]][index.4.threshold,])) 
+    unspliced.unmeth.test.sum.index.4.threshold <- rowSums(test.list[[4]][index.4.threshold,]+round((1-ambiguous.as.spliced)*test.list[[6]][index.4.threshold,]))
   }else{
     spliced.unmeth.test.sum.index.4 <- rowSums(test.list[[2]][index.4,])
     unspliced.unmeth.test.sum.index.4 <- rowSums(test.list[[4]][index.4,])
+    spliced.unmeth.test.sum.index.4.threshold <- rowSums(test.list[[2]][index.4.threshold,])
+    unspliced.unmeth.test.sum.index.4.threshold <- rowSums(test.list[[4]][index.4.threshold,])
   }
   
   
@@ -197,6 +217,20 @@ methylation.sites.preprocess <- function(test.list, control.list=NULL,ambiguous.
   index.7 <- index.4 [which(spliced.unmeth.test.sum.index.4==0&unspliced.unmeth.test.sum.index.4==0)]
   # the site unmethylation occurs at both spliced and unspliced RNA
   index.8 <- index.4 [which(spliced.unmeth.test.sum.index.4!=0&unspliced.unmeth.test.sum.index.4!=0)]
+  
+  # the site unmethylation only occurs at unspliced RNA
+  index.5.threshold <- index.4.threshold [which(spliced.unmeth.test.sum.index.4.threshold<=(threshold*dim(test.list[[1]])[1])&
+                                                  unspliced.unmeth.test.sum.index.4.threshold>(threshold*dim(test.list[[1]])[1]))]
+  # the site unmethylation only occurs at spliced RNA
+  index.6.threshold <- index.4.threshold [which(spliced.unmeth.test.sum.index.4.threshold>(threshold*dim(test.list[[1]])[1])&
+                                                  unspliced.unmeth.test.sum.index.4.threshold<=(threshold*dim(test.list[[1]])[1]))]
+  # the site without unmethylation 
+  index.7.threshold <- index.4.threshold [which(spliced.unmeth.test.sum.index.4.threshold<=(threshold*dim(test.list[[1]])[1])&
+                                                  unspliced.unmeth.test.sum.index.4.threshold<=(threshold*dim(test.list[[1]])[1]))]
+  # the site unmethylation occurs at both spliced and unspliced RNA
+  index.8.threshold <- index.4.threshold [which(spliced.unmeth.test.sum.index.4.threshold>(threshold*dim(test.list[[1]])[1])&
+                                                  unspliced.unmeth.test.sum.index.4.threshold>(threshold*dim(test.list[[1]])[1]))]
+  
   
   spliced_methylation_Beta_value_meta <- (spliced.meth.test.sum)/(spliced.unmeth.test.sum+spliced.meth.test.sum+epsilon_Beta)
   unspliced_methylation_Beta_value_meta <- (unspliced.meth.test.sum)/(unspliced.unmeth.test.sum+unspliced.meth.test.sum+epsilon_Beta)
@@ -301,15 +335,21 @@ methylation.sites.preprocess <- function(test.list, control.list=NULL,ambiguous.
                      "have methylation on both but without unmethylation read counts"=index.7,
                      "have methylation on both and unmethylation on both"=index.8)
   
+  index.site.threshold <- list("methylation only occurs at unspliced RNA (base on the threshold)"=index.1.threshold,
+                     "methylation only occurs at spliced RNA (base on the threshold)"=index.2.threshold,
+                     "without methylation (base on the threshold)"=index.3.threshold,
+                     "have methylation on both but unmethylation.spliced no read counts (base on the threshold)"=index.5.threshold,
+                     "have methylation on both but unmethylation.unspliced no read counts (base on the threshold)"=index.6.threshold,
+                     "have methylation on both but without unmethylation read counts (base on the threshold)"=index.7.threshold,
+                     "have methylation on both and unmethylation on both (base on the threshold)"=index.8.threshold)
   
-  
-  res_list <- list(test.return, control.return, index.site,
+  res_list <- list(test.return, control.return, index.site,index.site.threshold,
                    spliced_methylation_Beta_value_meta,unspliced_methylation_Beta_value_meta,
                    spliced_methylation_M_value_meta,unspliced_methylation_M_value_meta,
                    spliced_methylation_RR_value_meta,unspliced_methylation_RR_value_meta,
                    spliced_methylation_OR_value_meta,unspliced_methylation_OR_value_meta,
                    spliced_methylation_TCR_value_meta,unspliced_methylation_TCR_value_meta,vg.test)
-  names(res_list) <- c("test","control","index",
+  names(res_list) <- c("test","control","index","index.site.threshold",
                        "spliced_methylation_Beta_value_meta","unspliced_methylation_Beta_value_meta",
                        "spliced_methylation_M_value_meta","unspliced_methylation_M_value_meta",
                        "spliced_methylation_RR_value_meta","unspliced_methylation_RR_value_meta",
