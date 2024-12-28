@@ -91,6 +91,8 @@ show.velocity.on.embedding.eu <- function(emb,current,projected,deltaE,n=30,embe
   } else if(scale=='sqrt') {
     cat("sqrt scale ... ")
     em <- sqrt(em); emn <- sqrt(emn);
+  }else { # linear
+    cat("linear scale ... ")
   }
 
   if(!is.na(nPcs)) { # run PCA reduction on the em
