@@ -4,6 +4,7 @@
 ##' @param control.list   a list of the control cells, with four data.frame of the methylation.spliced,  unmethylation.spliced,methylation.unspliced, unmethylation.unspliced read counts
 ##' @param deltaT - amount of time to project the cell forward
 ##' @param steady.state.cells - optional set of steady-state cells on which the gamma should be estimated (defaults to all cells)
+##' @param control_size size factor for the control cell
 ##' @param kCells - number of k nearest neighbors (NN) to use in slope calculation smoothing
 ##' @param cellKNN - optional pre-calculated cell KNN matrix
 ##' @param kSites - number of sites (k) to use in site kNN pooling
@@ -47,6 +48,7 @@
 #'
 methylation.site.relative.velocity.estimates <- function (
     test.list, control.list, deltaT = 1, steady.state.cells = colnames(test.list[[1]]),
+    control_size=NULL,
     kCells = 5, cellKNN = NULL, kSites = 1, siteKNN = NULL, old.fit = NULL,
     mult = 1000, min.nmat.emat.correlation = 0.05,p_value=TRUE,
     min.nmat.emat.slope = 0.05, zero.offset = FALSE, deltaT2 = 1,delta_model="model 2",

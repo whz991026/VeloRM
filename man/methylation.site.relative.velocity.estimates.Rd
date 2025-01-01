@@ -9,6 +9,7 @@ methylation.site.relative.velocity.estimates(
   control.list,
   deltaT = 1,
   steady.state.cells = colnames(test.list[[1]]),
+  control_size = NULL,
   kCells = 5,
   cellKNN = NULL,
   kSites = 1,
@@ -59,6 +60,8 @@ methylation.site.relative.velocity.estimates(
 \item{steady.state.cells}{\itemize{
 \item optional set of steady-state cells on which the gamma should be estimated (defaults to all cells)
 }}
+
+\item{control_size}{size factor for the control cell}
 
 \item{kCells}{\itemize{
 \item number of k nearest neighbors (NN) to use in slope calculation smoothing
