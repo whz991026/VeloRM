@@ -213,31 +213,43 @@ methylation.site.relative.velocity.estimates <- function (
     OR_delta <- RR_delta <- TCR_delta <- NULL
   } else{
     control_information <- list()
+    if(length(control_size)==0){
+      control_size <- sizeFactor(spliced.meth.control + spliced.unmeth.control,narm = narm)
+      if (anyNA(control_size)) {
+        control_size <- sizeFactor(spliced.meth.control + spliced.unmeth.control,narm = TRUE)
+      }
+      if (anyNA(control_size)) {
+        index <- which(is.na(control_size))
+        print(paste0("there are ",length(index), "number of cell missing the control size"))
+        control_information_M <- (rowSums( t(t(spliced.meth.control[,-index])/control_size[-index]) )+epsilon_control_M) /
+          (rowSums( t(t(spliced.unmeth.control[,-index])/control_size[-index]) )+epsilon_control_M)
+        
+        control_information_Beta <- (rowSums( t(t(spliced.meth.control[,-index])/control_size[-index]) )+epsilon_control_Beta) /
+          (rowSums( t(t(spliced.unmeth.control[,-index])/control_size[-index]) )+rowSums( t(t(spliced.meth.control[,-index])/control_size[-index]) )+epsilon_control_Beta)
+        
+        control_information[["control_information_M"]] <- control_information_M
+        control_information[["control_information_Beta"]] <- control_information_Beta
+      } else{
+        control_information_M <- (rowSums( t(t(spliced.meth.control)/control_size) )+epsilon_control_M) /
+          (rowSums( t(t(spliced.unmeth.control)/control_size) )+epsilon_control_M)
+        
+        control_information_Beta <- (rowSums( t(t(spliced.meth.control)/control_size) )+epsilon_control_Beta) /
+          (rowSums( t(t(spliced.unmeth.control)/control_size) )+rowSums( t(t(spliced.meth.control)/control_size) )+epsilon_control_Beta)
+        
+        control_information[["control_information_M"]] <- control_information_M
+        control_information[["control_information_Beta"]] <- control_information_Beta
+      }
+    }else{
+      control_information_M <- (rowSums( t(t(spliced.meth.control)/control_size) )+epsilon_control_M) /
+        (rowSums( t(t(spliced.unmeth.control)/control_size) )+epsilon_control_M)
+      
+      control_information_Beta <- (rowSums( t(t(spliced.meth.control)/control_size) )+epsilon_control_Beta) /
+        (rowSums( t(t(spliced.unmeth.control)/control_size) )+rowSums( t(t(spliced.meth.control)/control_size) )+epsilon_control_Beta)
+      
+      control_information[["control_information_M"]] <- control_information_M
+      control_information[["control_information_Beta"]] <- control_information_Beta
+    }
     
-    size <- sizeFactor(spliced.meth.control + spliced.unmeth.control,narm = narm)
-    if (anyNA(size)) {
-      size <- sizeFactor(spliced.meth.control + spliced.unmeth.control,narm = TRUE)
-    }
-    if (anyNA(size)) {
-      index <- which(is.na(size))
-      control_information_M <- (rowSums( t(t(spliced.meth.control[,-index])/size[-index]) )+epsilon_control_M) /
-        (rowSums( t(t(spliced.unmeth.control[,-index])/size[-index]) )+epsilon_control_M)
-      
-      control_information_Beta <- (rowSums( t(t(spliced.meth.control[,-index])/size[-index]) )+epsilon_control_Beta) /
-        (rowSums( t(t(spliced.unmeth.control[,-index])/size[-index]) )+rowSums( t(t(spliced.meth.control[,-index])/size[-index]) )+epsilon_control_Beta)
-      
-      control_information[["control_information_M"]] <- control_information_M
-      control_information[["control_information_Beta"]] <- control_information_Beta
-    } else{
-      control_information_M <- (rowSums( t(t(spliced.meth.control)/size) )+epsilon_control_M) /
-        (rowSums( t(t(spliced.unmeth.control)/size) )+epsilon_control_M)
-      
-      control_information_Beta <- (rowSums( t(t(spliced.meth.control)/size) )+epsilon_control_Beta) /
-        (rowSums( t(t(spliced.unmeth.control)/size) )+rowSums( t(t(spliced.meth.control)/size) )+epsilon_control_Beta)
-      
-      control_information[["control_information_M"]] <- control_information_M
-      control_information[["control_information_Beta"]] <- control_information_Beta
-    }
     
     
     OR_current <- log2(((meth_result[["current"]][index_intersect,]+epsilon_OR)/
