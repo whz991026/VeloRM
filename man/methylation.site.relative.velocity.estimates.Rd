@@ -174,7 +174,7 @@ methylation.site.relative.velocity.estimates(
 \item{narm}{size factor rm na or not}
 }
 \value{
-list(meth_result,unmeth_result,methylation_level_list,control_information)
+list(meth_result,unmeth_result,methylation_level_list,control_information) the control information only for spliced
 }
 \description{
 Estimate RNA methylation velocity using site-relative slopes

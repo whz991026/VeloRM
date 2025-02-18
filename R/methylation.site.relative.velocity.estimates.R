@@ -42,7 +42,7 @@
 ##' @param epsilon_control_Beta epsilon of control_Beta
 ##' @param narm size factor rm na or not
 #'@importFrom stats anova
-#' @return list(meth_result,unmeth_result,methylation_level_list,control_information)
+#' @return list(meth_result,unmeth_result,methylation_level_list,control_information) the control information only for spliced
 #' @export
 #'
 #'
