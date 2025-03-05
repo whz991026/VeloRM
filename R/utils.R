@@ -272,11 +272,12 @@ colEuclid <- function(e, p, n.cores = 1) {
 #
 # @param emb the embedding matrix
 # @param tp transition probabilities matrix
+# @param rm_uniform whether discard the uniform
 # @param arrow.scale the scale of the arrow
 # @param n.cores number of cores
 #
 # @return the delta embedding values
-embArrows <- function(emb, tp, arrow.scale = 1.0,n.cores=1) {
+embArrows <- function(emb, tp,rm_uniform=TRUE, arrow.scale = 1.0,n.cores=1) {
   dm <- matrix(0, nrow = ncol(emb), ncol = nrow(emb))
   tpb <- as.matrix(tp)  # Convert sparse matrix to matrix
   tpb[tpb != 0] <- 1
@@ -291,7 +292,11 @@ embArrows <- function(emb, tp, arrow.scale = 1.0,n.cores=1) {
     di <- apply(di, 2, function(df) df / sum(abs(df)))  # Normalize, scale
     di[, i] <- 0  # No distance to itself
     di <- di * arrow.scale
-    ds <- di %*% tp[, i] - di %*% tpb[, i]
+    if(rm_uniform==TRUE){
+      ds <- di %*% tp[, i] - di %*% tpb[, i]
+    } else{
+      ds <- di %*% tp[, i] 
+    }
     return(ds)
   }
 

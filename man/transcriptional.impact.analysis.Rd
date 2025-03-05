@@ -11,6 +11,7 @@ transcriptional.impact.analysis(
   methylation.site.relative.velocity.result,
   exp.site.velocity.result,
   delta_exp = NULL,
+  delta_exp_TPM = TRUE,
   methylation_level,
   methylation_level_scale,
   cor_method,
@@ -37,6 +38,8 @@ transcriptional.impact.analysis(
 \item{exp.site.velocity.result}{results from site.relative.velocity.estimates using meth reads + unmeth reads}
 
 \item{delta_exp}{c("delta_from_exp_velocity", "delta_from_meta_methylation_site_velocity")}
+
+\item{delta_exp_TPM}{using TPM to normalize the delta_exp or not}
 
 \item{methylation_level}{c("M","Beta","RR","OR","TCR","meta_M_sep","meta_Beta_sep","meta_RR_sep","meta_OR_sep","meta_TCR_sep")}
 

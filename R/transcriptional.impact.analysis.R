@@ -6,6 +6,7 @@
 #' @param methylation.site.relative.velocity.result results from methylation.site.relative.velocity.estimates
 #' @param exp.site.velocity.result results from site.relative.velocity.estimates using meth reads + unmeth reads
 #' @param delta_exp c("delta_from_exp_velocity", "delta_from_meta_methylation_site_velocity")
+#' @param delta_exp_TPM using TPM to normalize the delta_exp or not
 #' @param methylation_level c("M","Beta","RR","OR","TCR","meta_M_sep","meta_Beta_sep","meta_RR_sep","meta_OR_sep","meta_TCR_sep")
 #' @param methylation_level_scale scale of the methylation level c("linear","log2")
 #' @param cor_method c("pearson", "kendall", "spearman")
@@ -27,6 +28,7 @@
 transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_size=NULL,
                                             methylation.site.relative.velocity.result,
                                             exp.site.velocity.result,delta_exp=NULL,
+                                            delta_exp_TPM =TRUE,
                                             methylation_level,methylation_level_scale,
                                             cor_method,epsilon_Beta=1e-7,
                                             epsilon_M=1e-7,epsilon_OR=1e-7,epsilon_RR=1e-7,
@@ -304,10 +306,23 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
   test.list.intersect[[4]] <- unspliced.unmeth.test[intersect_names,]
   
   exp_matrix <- test.list.intersect[[1]]+test.list.intersect[[2]]
+   
+  calculate_TPM <- function(exp_matrix, site_lengths) {
+    
+    
+    # Calculate Reads Per Kilobase (RPK)
+    rpk <- sweep(exp_matrix, 1, site_lengths / 1000, FUN = "/")
+    
+    # Calculate scaling factors for each cell (sum of RPKs)
+    scaling_factors <- colSums(rpk)
+    
+    # Calculate TPM
+    tpm <- sweep(rpk, 2, scaling_factors, FUN = "/") * 1e6
+    
+    return(tpm)
+  }
   
-  
-  
-  
+  exp_matrix <- calculate_TPM(exp_matrix,rep(1,dim(exp_matrix)[1]))
   
   if (methylation_level=="M"){
     if(methylation_level_scale=="log2"){
@@ -577,6 +592,11 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
     }
   }
   
+  if (delta_exp_TPM ==TRUE){
+    delta_exp_matrix <- calculate_TPM(delta_exp_matrix,rep(1,dim(delta_exp_matrix)[1]))
+  }
+  
+  
   # exp_and_methylation_cor <- list()
   # for (i in 1: length(intersect_names)){
   #   exp_and_methylation_cor[[i]] <- cor(methylation_level_matrix[i,],exp_matrix[i,],method=cor_method)
@@ -601,23 +621,22 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
    #                                         data=data.frame_,na.action = na.action.lm)
    # }
   exp_and_methylation_cor_lm <- lapply(seq_along(intersect_names), function(i) {
-    data.frame_ <- data.frame(
-      methylation_level_spliced = methylation_level_matrix_spliced[i, ],
-      methylation_level_unspliced = methylation_level_matrix_unspliced[i, ],
-      expression_level = exp_matrix[i, ]
-    )
-    
+    data.frame_ <- data.frame(cbind(as.numeric(methylation_level_matrix_spliced[i, ]),
+                                    as.numeric(methylation_level_matrix_unspliced[i, ]),
+                                               as.numeric(exp_matrix[i, ])))
+    colnames(data.frame_) <- c("methylation_level_spliced","methylation_level_unspliced",
+                               "expression_level")
     lm(expression_level ~ methylation_level_spliced + methylation_level_unspliced, 
        data = data.frame_, na.action = na.action.lm)
   })
   
   delta_exp_and_methylation_cor_lm <- lapply(seq_along(intersect_names), function(i) {
-    data.frame_ <- data.frame(
-      methylation_level_spliced = methylation_level_matrix_spliced[i, ],
-      methylation_level_unspliced = methylation_level_matrix_unspliced[i, ],
-      delta_expression_level = delta_exp_matrix[i, ]
+    data.frame_ <- data.frame(cbind(as.numeric(methylation_level_matrix_spliced[i, ]),
+                                               as.numeric(methylation_level_matrix_unspliced[i, ]),
+                                                          as.numeric(delta_exp_matrix[i, ])) 
     )
-    
+    colnames(data.frame_) <- c("methylation_level_spliced","methylation_level_unspliced",
+                               "delta_expression_level")
     lm(delta_expression_level ~ methylation_level_spliced + methylation_level_unspliced, 
        data = data.frame_, na.action = na.action.lm)
   })
@@ -628,6 +647,7 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
   list_return[["delta_exp_and_methylation_cor_lm"]] <- delta_exp_and_methylation_cor_lm
   other_information <- list()
   other_information[["delta_exp"]] <- delta_exp
+  other_information[["delta_exp_TPM"]] <- delta_exp_TPM
   other_information[["methylation_level"]] <- methylation_level
   other_information[["methylation_level_scale"]] <- methylation_level_scale
   other_information[["cor_method"]] <- cor_method

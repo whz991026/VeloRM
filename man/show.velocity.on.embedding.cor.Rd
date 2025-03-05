@@ -34,6 +34,7 @@ show.velocity.on.embedding.cor(
   expression.scaling = FALSE,
   point.size = 3,
   arrow_size = 0.3,
+  rm_uniform = TRUE,
   ...
 )
 }
@@ -95,6 +96,8 @@ show.velocity.on.embedding.cor(
 \item{point.size}{size of the point}
 
 \item{arrow_size}{size of arrow}
+
+\item{rm_uniform}{whether discard the uniform}
 
 \item{...}{extra parameters passed to plot() function}
 }

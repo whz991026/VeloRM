@@ -29,6 +29,7 @@
 ##' @param expression.scaling whether to scale the velocity length by the projection of velocity onto the expected expression change (based on the transition probability matrix)
 ##' @param point.size size of the point
 ##' @param arrow_size size of arrow
+##' @param rm_uniform whether discard the uniform
 ##' @param ... extra parameters passed to plot() function
 ##'
 ##' @importFrom stats rbinom
@@ -46,7 +47,8 @@ show.velocity.on.embedding.cor <- function(emb,current,projected,deltaE,n=100,ce
                                            n.cores=1, 
                                            show.cell=NULL, cell.border.alpha=0.5,
                                            cc=NULL, return.details=FALSE,
-                                           expression.scaling=FALSE,point.size=3,arrow_size=0.3,  ...) {
+                                           expression.scaling=FALSE,point.size=3,arrow_size=0.3, 
+                                           rm_uniform=TRUE,...) {
   options(warn = -1)
   randomize <- FALSE;
   em <- as.matrix(current);
@@ -123,7 +125,7 @@ show.velocity.on.embedding.cor <- function(emb,current,projected,deltaE,n=100,ce
   
   # arrow estimates for each cell
   cat("calculating arrows ... ")
-  arsd <- data.frame(t(embArrows(emb,tp,arrow.scale,n.cores)))
+  arsd <- data.frame(t(embArrows(emb,tp,rm_uniform,arrow.scale,n.cores)))
   rownames(arsd) <- rownames(emb);
 
   if(expression.scaling) {
