@@ -34,7 +34,7 @@ show.velocity.on.embedding.cor(
   expression.scaling = FALSE,
   point.size = 3,
   arrow_size = 0.3,
-  rm_uniform = TRUE,
+  rm_uniform = "mode1",
   ...
 )
 }
@@ -97,7 +97,8 @@ show.velocity.on.embedding.cor(
 
 \item{arrow_size}{size of arrow}
 
-\item{rm_uniform}{whether discard the uniform}
+\item{rm_uniform}{mode1: tp minus the uniform, mode2: tp minus the uniform and discard the negative,
+mode3: do nothing for the tp}
 
 \item{...}{extra parameters passed to plot() function}
 }

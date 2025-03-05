@@ -272,12 +272,13 @@ colEuclid <- function(e, p, n.cores = 1) {
 #
 # @param emb the embedding matrix
 # @param tp transition probabilities matrix
-# @param rm_uniform whether discard the uniform
+# @param rm_uniform mode1: tp minus the uniform, mode2: tp minus the uniform and discard the negative,
+# mode3: do nothing for the tp
 # @param arrow.scale the scale of the arrow
 # @param n.cores number of cores
 #
 # @return the delta embedding values
-embArrows <- function(emb, tp,rm_uniform=TRUE, arrow.scale = 1.0,n.cores=1) {
+embArrows <- function(emb, tp,rm_uniform="mode1", arrow.scale = 1.0,n.cores=1) {
   dm <- matrix(0, nrow = ncol(emb), ncol = nrow(emb))
   tpb <- as.matrix(tp)  # Convert sparse matrix to matrix
   tpb[tpb != 0] <- 1
@@ -292,10 +293,16 @@ embArrows <- function(emb, tp,rm_uniform=TRUE, arrow.scale = 1.0,n.cores=1) {
     di <- apply(di, 2, function(df) df / sum(abs(df)))  # Normalize, scale
     di[, i] <- 0  # No distance to itself
     di <- di * arrow.scale
-    if(rm_uniform==TRUE){
+    if(rm_uniform=="mode1"){
       ds <- di %*% tp[, i] - di %*% tpb[, i]
-    } else{
+    } else if (rm_uniform=="mode2"){
+      tp[, i] <- tp[, i] - tpb[, i]
+      tp[, i] <- pmax(tp[, i],0)
       ds <- di %*% tp[, i] 
+    } else if (rm_uniform=="mode3"){
+      ds <- di %*% tp[, i] 
+    } else{
+      stop("rm_uniform should be mode1, mode2, and mode3")
     }
     return(ds)
   }

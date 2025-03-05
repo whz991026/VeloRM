@@ -29,7 +29,8 @@
 ##' @param expression.scaling whether to scale the velocity length by the projection of velocity onto the expected expression change (based on the transition probability matrix)
 ##' @param point.size size of the point
 ##' @param arrow_size size of arrow
-##' @param rm_uniform whether discard the uniform
+##' @param rm_uniform mode1: tp minus the uniform, mode2: tp minus the uniform and discard the negative,
+##' mode3: do nothing for the tp
 ##' @param ... extra parameters passed to plot() function
 ##'
 ##' @importFrom stats rbinom
@@ -48,7 +49,7 @@ show.velocity.on.embedding.cor <- function(emb,current,projected,deltaE,n=100,ce
                                            show.cell=NULL, cell.border.alpha=0.5,
                                            cc=NULL, return.details=FALSE,
                                            expression.scaling=FALSE,point.size=3,arrow_size=0.3, 
-                                           rm_uniform=TRUE,...) {
+                                           rm_uniform="mode1",...) {
   options(warn = -1)
   randomize <- FALSE;
   em <- as.matrix(current);
