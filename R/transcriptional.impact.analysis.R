@@ -19,6 +19,8 @@
 #' @param epsilon_control_Beta epsilon of control_Beta
 #' @param na.action.lm 	a function which indicates what should happen when the data contain NAs. The default is set by the na.action setting of options, and is na.fail if that is unset. The ‘factory-fresh’ default is na.omit. Another possible value is NULL, no action. Value na.exclude can be useful.
 #' @param narm size factor rm na or not
+#' @param seed seed for set.seed
+#' @param train_proportion propotion for the traning data
 #' 
 #' @importFrom stats na.exclude
 #' 
@@ -34,7 +36,9 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
                                             epsilon_M=1e-7,epsilon_OR=1e-7,epsilon_RR=1e-7,
                                             epsilon_TCR=1e-7,
                                             epsilon_control_M=1,epsilon_control_Beta=1,
-                                            na.action.lm= "na.exclude",narm=FALSE){
+                                            na.action.lm= "na.exclude",narm=FALSE,
+                                            seed=42,
+                                            train_proportion=0.8){
   # check test.list
   if (length(test.list)!=4)
     stop("the length of test list need to be 4")
@@ -620,31 +624,61 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
    #   exp_and_methylation_cor_lm[[i]] <- lm(expression_level~methylation_level_spliced+methylation_level_unspliced,
    #                                         data=data.frame_,na.action = na.action.lm)
    # }
-  exp_and_methylation_cor_lm <- lapply(seq_along(intersect_names), function(i) {
-    data.frame_ <- data.frame(cbind(as.numeric(methylation_level_matrix_spliced[i, ]),
-                                    as.numeric(methylation_level_matrix_unspliced[i, ]),
-                                               as.numeric(exp_matrix[i, ])))
-    colnames(data.frame_) <- c("methylation_level_spliced","methylation_level_unspliced",
-                               "expression_level")
-    lm(expression_level ~ methylation_level_spliced + methylation_level_unspliced, 
-       data = data.frame_, na.action = na.action.lm)
-  })
+  set.seed(seed)
   
-  delta_exp_and_methylation_cor_lm <- lapply(seq_along(intersect_names), function(i) {
-    data.frame_ <- data.frame(cbind(as.numeric(methylation_level_matrix_spliced[i, ]),
-                                               as.numeric(methylation_level_matrix_unspliced[i, ]),
-                                                          as.numeric(delta_exp_matrix[i, ])) 
+  # Define the proportion of data to be used for training
+  train_proportion <- train_proportion
+  
+  # Initialize lists to store the models and predictions
+  exp_and_methylation_cor_lm <- list()
+  delta_exp_and_methylation_cor_lm <- list()
+  exp_predictions <- list()
+  delta_exp_predictions <- list()
+  
+  # Loop through each gene/feature
+  for (i in seq_along(intersect_names)) {
+    # Create the data frame
+    data.frame_ <- data.frame(
+      methylation_level_spliced = as.numeric(methylation_level_matrix_spliced[i, ]),
+      methylation_level_unspliced = as.numeric(methylation_level_matrix_unspliced[i, ]),
+      expression_level = as.numeric(exp_matrix[i, ])
     )
-    colnames(data.frame_) <- c("methylation_level_spliced","methylation_level_unspliced",
-                               "delta_expression_level")
-    lm(delta_expression_level ~ methylation_level_spliced + methylation_level_unspliced, 
-       data = data.frame_, na.action = na.action.lm)
-  })
+    
+    # Split the data into training and test sets
+    train_index <- sample(1:nrow(data.frame_), size = train_proportion * nrow(data.frame_))
+    train_data <- data.frame_[train_index, ]
+    test_data <- data.frame_[-train_index, ]
+    
+    # Fit the linear regression model on the training data
+    exp_and_methylation_cor_lm[[i]] <- lm(expression_level ~ methylation_level_spliced + methylation_level_unspliced, 
+                                          data = train_data, na.action = na.omit)
+    
+    # Predict on the test data
+    exp_predictions[[i]] <- predict(exp_and_methylation_cor_lm[[i]], newdata = test_data)
+    
+    # Repeat the process for delta expression
+    delta_data.frame_ <- data.frame(
+      methylation_level_spliced = as.numeric(methylation_level_matrix_spliced[i, ]),
+      methylation_level_unspliced = as.numeric(methylation_level_matrix_unspliced[i, ]),
+      delta_expression_level = as.numeric(delta_exp_matrix[i, ])
+    )
+    
+    delta_train_data <- delta_data.frame_[train_index, ]
+    delta_test_data <- delta_data.frame_[-train_index, ]
+    
+    delta_exp_and_methylation_cor_lm[[i]] <- lm(delta_expression_level ~ methylation_level_spliced + methylation_level_unspliced, 
+                                                data = delta_train_data, na.action = na.omit)
+    
+    delta_exp_predictions[[i]] <- predict(delta_exp_and_methylation_cor_lm[[i]], newdata = delta_test_data)
+  }
+  
   list_return <- list()
   list_return[["exp_and_methylation_cor"]] <- exp_and_methylation_cor
   list_return[["delta_exp_and_methylation_cor"]] <- delta_exp_and_methylation_cor
   list_return[["exp_and_methylation_cor_lm"]] <- exp_and_methylation_cor_lm
   list_return[["delta_exp_and_methylation_cor_lm"]] <- delta_exp_and_methylation_cor_lm
+  list_return[["exp_predictions"]] <- exp_predictions
+  list_return[["delta_exp_predictions"]] <- delta_exp_predictions
   other_information <- list()
   other_information[["delta_exp"]] <- delta_exp
   other_information[["delta_exp_TPM"]] <- delta_exp_TPM

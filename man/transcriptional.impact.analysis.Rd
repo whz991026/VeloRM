@@ -23,7 +23,9 @@ transcriptional.impact.analysis(
   epsilon_control_M = 1,
   epsilon_control_Beta = 1,
   na.action.lm = "na.exclude",
-  narm = FALSE
+  narm = FALSE,
+  seed = 42,
+  train_proportion = 0.8
 )
 }
 \arguments{
@@ -64,6 +66,10 @@ transcriptional.impact.analysis(
 \item{na.action.lm}{a function which indicates what should happen when the data contain NAs. The default is set by the na.action setting of options, and is na.fail if that is unset. The ‘factory-fresh’ default is na.omit. Another possible value is NULL, no action. Value na.exclude can be useful.}
 
 \item{narm}{size factor rm na or not}
+
+\item{seed}{seed for set.seed}
+
+\item{train_proportion}{propotion for the traning data}
 }
 \value{
 list()
