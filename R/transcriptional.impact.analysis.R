@@ -634,10 +634,24 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
   delta_exp_and_methylation_cor_lm <- list()
   exp_predictions <- list()
   delta_exp_predictions <- list()
+  exp_metrics <- list()  # To store RMSE and R-squared for expression level
+  delta_exp_metrics <- list()  # To store RMSE and R-squared for delta expression level
+  
+  # Function to calculate RMSE
+  calculate_rmse <- function(actual, predicted) {
+    sqrt(mean((actual - predicted)^2, na.rm = TRUE))
+  }
+  
+  # Function to calculate R-squared
+  calculate_r_squared <- function(actual, predicted) {
+    ss_total <- sum((actual - mean(actual, na.rm = TRUE))^2, na.rm = TRUE)
+    ss_residual <- sum((actual - predicted)^2, na.rm = TRUE)
+    1 - (ss_residual / ss_total)
+  }
   
   # Loop through each gene/feature
   for (i in seq_along(intersect_names)) {
-    # Create the data frame
+    # Create the data frame for expression level
     data.frame_ <- data.frame(
       methylation_level_spliced = as.numeric(methylation_level_matrix_spliced[i, ]),
       methylation_level_unspliced = as.numeric(methylation_level_matrix_unspliced[i, ]),
@@ -656,6 +670,18 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
     # Predict on the test data
     exp_predictions[[i]] <- predict(exp_and_methylation_cor_lm[[i]], newdata = test_data)
     
+    # Calculate RMSE and R-squared for expression level
+    actual_exp <- test_data$expression_level
+    predicted_exp <- exp_predictions[[i]]
+    rmse_exp <- calculate_rmse(actual_exp, predicted_exp)
+    r_squared_exp <- calculate_r_squared(actual_exp, predicted_exp)
+    
+    # Save the metrics
+    exp_metrics[[i]] <- data.frame(
+      RMSE = rmse_exp,
+      R_squared = r_squared_exp
+    )
+    
     # Repeat the process for delta expression
     delta_data.frame_ <- data.frame(
       methylation_level_spliced = as.numeric(methylation_level_matrix_spliced[i, ]),
@@ -670,15 +696,35 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
                                                 data = delta_train_data, na.action = na.omit)
     
     delta_exp_predictions[[i]] <- predict(delta_exp_and_methylation_cor_lm[[i]], newdata = delta_test_data)
+    
+    # Calculate RMSE and R-squared for delta expression level
+    actual_delta_exp <- delta_test_data$delta_expression_level
+    predicted_delta_exp <- delta_exp_predictions[[i]]
+    rmse_delta_exp <- calculate_rmse(actual_delta_exp, predicted_delta_exp)
+    r_squared_delta_exp <- calculate_r_squared(actual_delta_exp, predicted_delta_exp)
+    
+    # Save the metrics
+    delta_exp_metrics[[i]] <- data.frame(
+      RMSE = rmse_delta_exp,
+      R_squared = r_squared_delta_exp
+    )
   }
+  
+  # Combine the metrics into a single data frame for easier analysis
+  exp_metrics_df <- do.call(rbind, exp_metrics)
+  delta_exp_metrics_df <- do.call(rbind, delta_exp_metrics)
+  
+  # Add row names (gene/feature names) to the metrics data frames
+  rownames(exp_metrics_df) <- intersect_names
+  rownames(delta_exp_metrics_df) <- intersect_names
   
   list_return <- list()
   list_return[["exp_and_methylation_cor"]] <- exp_and_methylation_cor
   list_return[["delta_exp_and_methylation_cor"]] <- delta_exp_and_methylation_cor
   list_return[["exp_and_methylation_cor_lm"]] <- exp_and_methylation_cor_lm
   list_return[["delta_exp_and_methylation_cor_lm"]] <- delta_exp_and_methylation_cor_lm
-  list_return[["exp_predictions"]] <- exp_predictions
-  list_return[["delta_exp_predictions"]] <- delta_exp_predictions
+  list_return[["exp_metrics_df "]] <- exp_metrics_df 
+  list_return[["delta_exp_metrics_df"]] <- delta_exp_metrics_df
   other_information <- list()
   other_information[["delta_exp"]] <- delta_exp
   other_information[["delta_exp_TPM"]] <- delta_exp_TPM
