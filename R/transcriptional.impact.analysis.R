@@ -660,7 +660,7 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
   }
   
   # Loop through each gene/feature
-  for (i in seq_along(intersect_names)[1:100]) {
+  for (i in seq_along(intersect_names)) {
     # Create the data frame for expression level
     data.frame_ <- data.frame(
       methylation_level_spliced = as.numeric(methylation_level_matrix_spliced[i, ]),
