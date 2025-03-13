@@ -624,26 +624,28 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
    #   exp_and_methylation_cor_lm[[i]] <- lm(expression_level~methylation_level_spliced+methylation_level_unspliced,
    #                                         data=data.frame_,na.action = na.action.lm)
    # }
+  
   set.seed(seed)
   
   # Define the proportion of data to be used for training
   train_proportion <- train_proportion
   
-  # Initialize lists to store metrics
-  exp_metrics_train <- list()  # To store RMSE and R-squared for expression level (training)
-  exp_metrics_test <- list()   # To store RMSE and R-squared for expression level (test)
-  delta_exp_metrics_train <- list()  # To store RMSE and R-squared for delta expression level (training)
-  delta_exp_metrics_test <- list()   # To store RMSE and R-squared for delta expression level (test)
+  # Preallocate lists to store metrics
+  num_genes <- length(intersect_names)
+  exp_metrics_train <- vector("list", num_genes)
+  exp_metrics_test <- vector("list", num_genes)
+  delta_exp_metrics_train <- vector("list", num_genes)
+  delta_exp_metrics_test <- vector("list", num_genes)
   
-  # Initialize lists to store coefficients and p-values
-  exp_coefficients <- list()
-  exp_pvalues <- list()
-  delta_exp_coefficients <- list()
-  delta_exp_pvalues <- list()
+  # Preallocate lists to store coefficients and p-values
+  exp_coefficients <- vector("list", num_genes)
+  exp_pvalues <- vector("list", num_genes)
+  delta_exp_coefficients <- vector("list", num_genes)
+  delta_exp_pvalues <- vector("list", num_genes)
   
-  # Initialize lists to store indices
-  test_indices <- list()
-  train_indices <- list()
+  # Preallocate lists to store indices
+  test_indices <- vector("list", num_genes)
+  train_indices <- vector("list", num_genes)
   
   # Function to calculate RMSE
   calculate_rmse <- function(actual, predicted) {
@@ -658,7 +660,7 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
   }
   
   # Loop through each gene/feature
-  for (i in seq_along(intersect_names)) {
+  for (i in seq_along(intersect_names)[1:100]) {
     # Create the data frame for expression level
     data.frame_ <- data.frame(
       methylation_level_spliced = as.numeric(methylation_level_matrix_spliced[i, ]),
@@ -685,24 +687,16 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
     
     # Calculate RMSE and R-squared for training data
     actual_exp_train <- train_data$expression_level
-    rmse_exp_train <- calculate_rmse(actual_exp_train, predicted_exp_train)
-    r_squared_exp_train <- calculate_r_squared(actual_exp_train, predicted_exp_train)
-    
-    # Save the metrics for training data
     exp_metrics_train[[i]] <- data.frame(
-      RMSE = rmse_exp_train,
-      R_squared = r_squared_exp_train
+      RMSE = calculate_rmse(actual_exp_train, predicted_exp_train),
+      R_squared = calculate_r_squared(actual_exp_train, predicted_exp_train)
     )
     
     # Calculate RMSE and R-squared for test data
     actual_exp_test <- test_data$expression_level
-    rmse_exp_test <- calculate_rmse(actual_exp_test, predicted_exp_test)
-    r_squared_exp_test <- calculate_r_squared(actual_exp_test, predicted_exp_test)
-    
-    # Save the metrics for test data
     exp_metrics_test[[i]] <- data.frame(
-      RMSE = rmse_exp_test,
-      R_squared = r_squared_exp_test
+      RMSE = calculate_rmse(actual_exp_test, predicted_exp_test),
+      R_squared = calculate_r_squared(actual_exp_test, predicted_exp_test)
     )
     
     # Store coefficients and p-values
@@ -728,24 +722,16 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
     
     # Calculate RMSE and R-squared for training data (delta)
     actual_delta_exp_train <- delta_train_data$delta_expression_level
-    rmse_delta_exp_train <- calculate_rmse(actual_delta_exp_train, delta_predicted_exp_train)
-    r_squared_delta_exp_train <- calculate_r_squared(actual_delta_exp_train, delta_predicted_exp_train)
-    
-    # Save the metrics for training data (delta)
     delta_exp_metrics_train[[i]] <- data.frame(
-      RMSE = rmse_delta_exp_train,
-      R_squared = r_squared_delta_exp_train
+      RMSE = calculate_rmse(actual_delta_exp_train, delta_predicted_exp_train),
+      R_squared = calculate_r_squared(actual_delta_exp_train, delta_predicted_exp_train)
     )
     
     # Calculate RMSE and R-squared for test data (delta)
     actual_delta_exp_test <- delta_test_data$delta_expression_level
-    rmse_delta_exp_test <- calculate_rmse(actual_delta_exp_test, delta_predicted_exp_test)
-    r_squared_delta_exp_test <- calculate_r_squared(actual_delta_exp_test, delta_predicted_exp_test)
-    
-    # Save the metrics for test data (delta)
     delta_exp_metrics_test[[i]] <- data.frame(
-      RMSE = rmse_delta_exp_test,
-      R_squared = r_squared_delta_exp_test
+      RMSE = calculate_rmse(actual_delta_exp_test, delta_predicted_exp_test),
+      R_squared = calculate_r_squared(actual_delta_exp_test, delta_predicted_exp_test)
     )
     
     # Store coefficients and p-values for delta expression
