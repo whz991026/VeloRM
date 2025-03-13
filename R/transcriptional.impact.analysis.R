@@ -747,8 +747,10 @@ transcriptional.impact.analysis <- function(test.list,control.list=NULL,control_
   
   
   # Add row names (gene/feature names) to the metrics data frames
-  rownames(exp_metrics_df) <- intersect_names
-  rownames(delta_exp_metrics_df) <- intersect_names
+  rownames(exp_metrics_train_df) <- intersect_names
+  rownames(delta_exp_metrics_train_df) <- intersect_names
+  rownames(exp_metrics_test_df) <- intersect_names
+  rownames(delta_exp_metrics_test_df) <- intersect_names
   
   list_return <- list()
   list_return[["exp_and_methylation_cor"]] <- exp_and_methylation_cor
