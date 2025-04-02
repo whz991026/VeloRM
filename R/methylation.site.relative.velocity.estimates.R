@@ -126,112 +126,123 @@ methylation.site.relative.velocity.estimates <- function (
                                                   cell.emb = cell.emb, cell.colors = cell.colors, expression.gradient = expression.gradient,
                                                   residual.gradient = residual.gradient, n.cores = n.cores, verbose = verbose,nrows=nrows,
                                                   low_color=low_color,high_color=high_color,point.size=point.size)
-  
-  
-  index_meth <- rownames(meth_result[["deltaE"]])
-  index_unmeth <- rownames(unmeth_result[["deltaE"]])
-  
-  if(length(intersect(index_meth,index_unmeth))==0){
-    stop("the results of meth and unmeth without any intersection, please change the parameter")
-  }
-  index_intersect <- intersect(index_meth,index_unmeth)
-  
-  meth_result[["gamma_intersect"]]<- meth_result[["gamma"]][index_intersect]
-  meth_result[["projected_intersect"]]<- meth_result[["projected"]][index_intersect,]
-  meth_result[["current_intersect"]]<- meth_result[["current"]][index_intersect,]
-  meth_result[["deltaE_intersect"]]<- meth_result[["deltaE"]][index_intersect,]
-  
-  unmeth_result[["gamma_intersect"]]<- unmeth_result[["gamma"]][index_intersect]
-  unmeth_result[["projected_intersect"]]<- unmeth_result[["projected"]][index_intersect,]
-  unmeth_result[["current_intersect"]]<- unmeth_result[["current"]][index_intersect,]
-  unmeth_result[["deltaE_intersect"]]<- unmeth_result[["deltaE"]][index_intersect,]
-  
-  if (p_value==TRUE){
-    cat("calculating P-value ... ")
-    meth_y_value <- meth_result[["conv.nmat.norm"]][index_intersect,]-meth_result[["ko"]][index_intersect,1]   
-    #meth_y_value [meth_y_value<=0] <- 0
-    unmeth_y_value <- unmeth_result[["conv.nmat.norm"]][index_intersect,]-unmeth_result[["ko"]][index_intersect,1]   
-    #unmeth_y_value [unmeth_y_value<=0] <- 0
-    meth_x_value <- meth_result[["conv.emat.norm"]][index_intersect,]   
-    unmeth_x_value <- unmeth_result[["conv.emat.norm"]][index_intersect,]  
-    # Initialize vector to store p-values
-    p_value <- list()
+  if(!is.null(show.site)){
+    return(list(meth_result,unmeth_result))
+  } else{
+    index_meth <- rownames(meth_result[["deltaE"]])
+    index_unmeth <- rownames(unmeth_result[["deltaE"]])
     
-    # Loop over rows of the data
-    for (i in 1:dim(meth_y_value)[1]) {
-      # Extract the cells for meth and unmeth separately
-      meth_cells <- meth_result[["cell.use.list"]][index_intersect][[i]]
-      unmeth_cells <- unmeth_result[["cell.use.list"]][index_intersect][[i]]
+    if(length(intersect(index_meth,index_unmeth))==0){
+      stop("the results of meth and unmeth without any intersection, please change the parameter")
+    }
+    index_intersect <- intersect(index_meth,index_unmeth)
+    
+    meth_result[["gamma_intersect"]]<- meth_result[["gamma"]][index_intersect]
+    meth_result[["projected_intersect"]]<- meth_result[["projected"]][index_intersect,]
+    meth_result[["current_intersect"]]<- meth_result[["current"]][index_intersect,]
+    meth_result[["deltaE_intersect"]]<- meth_result[["deltaE"]][index_intersect,]
+    
+    unmeth_result[["gamma_intersect"]]<- unmeth_result[["gamma"]][index_intersect]
+    unmeth_result[["projected_intersect"]]<- unmeth_result[["projected"]][index_intersect,]
+    unmeth_result[["current_intersect"]]<- unmeth_result[["current"]][index_intersect,]
+    unmeth_result[["deltaE_intersect"]]<- unmeth_result[["deltaE"]][index_intersect,]
+    
+    if (p_value==TRUE){
+      cat("calculating P-value ... ")
+      meth_y_value <- meth_result[["conv.nmat.norm"]][index_intersect,]-meth_result[["ko"]][index_intersect,1]   
+      #meth_y_value [meth_y_value<=0] <- 0
+      unmeth_y_value <- unmeth_result[["conv.nmat.norm"]][index_intersect,]-unmeth_result[["ko"]][index_intersect,1]   
+      #unmeth_y_value [unmeth_y_value<=0] <- 0
+      meth_x_value <- meth_result[["conv.emat.norm"]][index_intersect,]   
+      unmeth_x_value <- unmeth_result[["conv.emat.norm"]][index_intersect,]  
+      # Initialize vector to store p-values
+      p_value <- list()
       
-      # Create the data frame with separate observations for meth and unmeth
-      data.frame.pvalue <- as.data.frame(rbind(
-        data.frame(y = meth_y_value[i, meth_cells], 
-                   x = meth_x_value[i, meth_cells], 
-                   var = "meth"),
-        data.frame(y = unmeth_y_value[i, unmeth_cells], 
-                   x = unmeth_x_value[i, unmeth_cells], 
-                   var = "unmeth")
-      ))
+      # Loop over rows of the data
+      for (i in 1:dim(meth_y_value)[1]) {
+        # Extract the cells for meth and unmeth separately
+        meth_cells <- meth_result[["cell.use.list"]][index_intersect][[i]]
+        unmeth_cells <- unmeth_result[["cell.use.list"]][index_intersect][[i]]
+        
+        # Create the data frame with separate observations for meth and unmeth
+        data.frame.pvalue <- as.data.frame(rbind(
+          data.frame(y = meth_y_value[i, meth_cells], 
+                     x = meth_x_value[i, meth_cells], 
+                     var = "meth"),
+          data.frame(y = unmeth_y_value[i, unmeth_cells], 
+                     x = unmeth_x_value[i, unmeth_cells], 
+                     var = "unmeth")
+        ))
+        
+        # Ensure columns are correctly typed
+        data.frame.pvalue$var <- as.factor(data.frame.pvalue$var)
+        data.frame.pvalue$x <- as.numeric(data.frame.pvalue$x)
+        data.frame.pvalue$y <- as.numeric(data.frame.pvalue$y)
+        
+        lm_res <- lm(y ~ 0 + x :var, data = data.frame.pvalue)
+        # Perform linear modeling
+        lm_res_null <- lm(y ~ 0 + x, data = data.frame.pvalue)
+        anova_result <- anova(lm_res_null, lm_res)
+        p_value[[i]] <- anova_result
+      }
       
-      # Ensure columns are correctly typed
-      data.frame.pvalue$var <- as.factor(data.frame.pvalue$var)
-      data.frame.pvalue$x <- as.numeric(data.frame.pvalue$x)
-      data.frame.pvalue$y <- as.numeric(data.frame.pvalue$y)
+      # Name the p-values by the intersected indices
+      names(p_value) <- index_intersect
       
-      lm_res <- lm(y ~ 0 + x :var, data = data.frame.pvalue)
-      # Perform linear modeling
-      lm_res_null <- lm(y ~ 0 + x, data = data.frame.pvalue)
-      anova_result <- anova(lm_res_null, lm_res)
-      p_value[[i]] <- anova_result
+      cat("done\n")
     }
     
-    # Name the p-values by the intersected indices
-    names(p_value) <- index_intersect
     
-    cat("done\n")
-  }
-  
-  
-  
-  # calculate the methylation level
-  cat("calculating methylation level ... ")
-  
-  Beta_value_current <- meth_result[["current"]][index_intersect,]/
-    (meth_result[["current"]][index_intersect,]+unmeth_result[["current"]][index_intersect,]+epsilon_Beta)
-  M_value_current <- log2((meth_result[["current"]][index_intersect,]+epsilon_M)/
-    (unmeth_result[["current"]][index_intersect,]+epsilon_M))
-  
-  Beta_value_projected <- meth_result[["projected"]][index_intersect,]/
-    (meth_result[["projected"]][index_intersect,]+unmeth_result[["projected"]][index_intersect,]+epsilon_Beta)
-  M_value_projected <- log2((meth_result[["projected"]][index_intersect,]+epsilon_M)/
-                            (unmeth_result[["projected"]][index_intersect,]+epsilon_M))
-  Beta_value_delta <- Beta_value_projected - Beta_value_current
-  M_value_delta <- M_value_projected - M_value_current
-  
-  
-  if (is.null(control.list)){
-    OR_current <- RR_current <- TCR_current <- control_information <- NULL
-    OR_projected <- RR_projected <- TCR_projected <- NULL
-    OR_delta <- RR_delta <- TCR_delta <- NULL
-  } else{
-    control_information <- list()
-    if(length(control_size)==0){
-      control_size <- sizeFactor(spliced.meth.control + spliced.unmeth.control,narm = narm)
-      if (anyNA(control_size)) {
-        control_size <- sizeFactor(spliced.meth.control + spliced.unmeth.control,narm = TRUE)
-      }
-      if (anyNA(control_size)) {
-        index <- which(is.na(control_size))
-        print(paste0("there are ",length(index), "number of cell missing the control size"))
-        control_information_M <- (rowSums( t(t(spliced.meth.control[,-index])/control_size[-index]) )+epsilon_control_M) /
-          (rowSums( t(t(spliced.unmeth.control[,-index])/control_size[-index]) )+epsilon_control_M)
-        
-        control_information_Beta <- (rowSums( t(t(spliced.meth.control[,-index])/control_size[-index]) )+epsilon_control_Beta) /
-          (rowSums( t(t(spliced.unmeth.control[,-index])/control_size[-index]) )+rowSums( t(t(spliced.meth.control[,-index])/control_size[-index]) )+epsilon_control_Beta)
-        
-        control_information[["control_information_M"]] <- control_information_M
-        control_information[["control_information_Beta"]] <- control_information_Beta
-      } else{
+    
+    # calculate the methylation level
+    cat("calculating methylation level ... ")
+    
+    Beta_value_current <- meth_result[["current"]][index_intersect,]/
+      (meth_result[["current"]][index_intersect,]+unmeth_result[["current"]][index_intersect,]+epsilon_Beta)
+    M_value_current <- log2((meth_result[["current"]][index_intersect,]+epsilon_M)/
+                              (unmeth_result[["current"]][index_intersect,]+epsilon_M))
+    
+    Beta_value_projected <- meth_result[["projected"]][index_intersect,]/
+      (meth_result[["projected"]][index_intersect,]+unmeth_result[["projected"]][index_intersect,]+epsilon_Beta)
+    M_value_projected <- log2((meth_result[["projected"]][index_intersect,]+epsilon_M)/
+                                (unmeth_result[["projected"]][index_intersect,]+epsilon_M))
+    Beta_value_delta <- Beta_value_projected - Beta_value_current
+    M_value_delta <- M_value_projected - M_value_current
+    
+    
+    if (is.null(control.list)){
+      OR_current <- RR_current <- TCR_current <- control_information <- NULL
+      OR_projected <- RR_projected <- TCR_projected <- NULL
+      OR_delta <- RR_delta <- TCR_delta <- NULL
+    } else{
+      control_information <- list()
+      if(length(control_size)==0){
+        control_size <- sizeFactor(spliced.meth.control + spliced.unmeth.control,narm = narm)
+        if (anyNA(control_size)) {
+          control_size <- sizeFactor(spliced.meth.control + spliced.unmeth.control,narm = TRUE)
+        }
+        if (anyNA(control_size)) {
+          index <- which(is.na(control_size))
+          print(paste0("there are ",length(index), "number of cell missing the control size"))
+          control_information_M <- (rowSums( t(t(spliced.meth.control[,-index])/control_size[-index]) )+epsilon_control_M) /
+            (rowSums( t(t(spliced.unmeth.control[,-index])/control_size[-index]) )+epsilon_control_M)
+          
+          control_information_Beta <- (rowSums( t(t(spliced.meth.control[,-index])/control_size[-index]) )+epsilon_control_Beta) /
+            (rowSums( t(t(spliced.unmeth.control[,-index])/control_size[-index]) )+rowSums( t(t(spliced.meth.control[,-index])/control_size[-index]) )+epsilon_control_Beta)
+          
+          control_information[["control_information_M"]] <- control_information_M
+          control_information[["control_information_Beta"]] <- control_information_Beta
+        } else{
+          control_information_M <- (rowSums( t(t(spliced.meth.control)/control_size) )+epsilon_control_M) /
+            (rowSums( t(t(spliced.unmeth.control)/control_size) )+epsilon_control_M)
+          
+          control_information_Beta <- (rowSums( t(t(spliced.meth.control)/control_size) )+epsilon_control_Beta) /
+            (rowSums( t(t(spliced.unmeth.control)/control_size) )+rowSums( t(t(spliced.meth.control)/control_size) )+epsilon_control_Beta)
+          
+          control_information[["control_information_M"]] <- control_information_M
+          control_information[["control_information_Beta"]] <- control_information_Beta
+        }
+      }else{
         control_information_M <- (rowSums( t(t(spliced.meth.control)/control_size) )+epsilon_control_M) /
           (rowSums( t(t(spliced.unmeth.control)/control_size) )+epsilon_control_M)
         
@@ -241,81 +252,74 @@ methylation.site.relative.velocity.estimates <- function (
         control_information[["control_information_M"]] <- control_information_M
         control_information[["control_information_Beta"]] <- control_information_Beta
       }
-    }else{
-      control_information_M <- (rowSums( t(t(spliced.meth.control)/control_size) )+epsilon_control_M) /
-        (rowSums( t(t(spliced.unmeth.control)/control_size) )+epsilon_control_M)
       
-      control_information_Beta <- (rowSums( t(t(spliced.meth.control)/control_size) )+epsilon_control_Beta) /
-        (rowSums( t(t(spliced.unmeth.control)/control_size) )+rowSums( t(t(spliced.meth.control)/control_size) )+epsilon_control_Beta)
       
-      control_information[["control_information_M"]] <- control_information_M
-      control_information[["control_information_Beta"]] <- control_information_Beta
+      
+      OR_current <- log2(((meth_result[["current"]][index_intersect,]+epsilon_OR)/
+                            (unmeth_result[["current"]][index_intersect,]+epsilon_OR))  /
+                           control_information_M[index_intersect])
+      RR_current <- log2(((meth_result[["current"]][index_intersect,]+epsilon_RR)/
+                            (unmeth_result[["current"]][index_intersect,]+
+                               meth_result[["current"]][index_intersect,]+epsilon_RR))  /
+                           control_information_Beta[index_intersect])
+      TCR_current <- ((meth_result[["current"]][index_intersect,]+epsilon_TCR)/
+                        (unmeth_result[["current"]][index_intersect,]
+                         +meth_result[["current"]][index_intersect,]+epsilon_TCR))- 
+        control_information_Beta[index_intersect]
+      TCR_current[TCR_current<=0] <- 0
+      
+      OR_projected <- log2(((meth_result[["projected"]][index_intersect,]+epsilon_OR)/
+                              (unmeth_result[["projected"]][index_intersect,]+epsilon_OR))  /
+                             control_information_M[index_intersect])
+      RR_projected <- log2(((meth_result[["projected"]][index_intersect,]+epsilon_RR)/
+                              (unmeth_result[["projected"]][index_intersect,]+
+                                 meth_result[["projected"]][index_intersect,]+epsilon_RR))  /
+                             control_information_Beta[index_intersect])
+      TCR_projected <- ((meth_result[["projected"]][index_intersect,]+epsilon_TCR)/
+                          (unmeth_result[["projected"]][index_intersect,]
+                           +meth_result[["projected"]][index_intersect,]+epsilon_TCR))- 
+        control_information_Beta[index_intersect]
+      
+      TCR_projected[TCR_projected<=0] <- 0
+      OR_delta <- OR_projected - OR_current
+      RR_delta <- RR_projected - RR_current
+      TCR_delta <- TCR_projected - TCR_current
+      
+      
     }
     
     
+    methylation_level_list <- list()
+    methylation_level_list[["current"]] <- list()
+    methylation_level_list[["current"]][["M"]] <- M_value_current
+    methylation_level_list[["current"]][["Beta"]] <- Beta_value_current
+    methylation_level_list[["current"]][["OR"]] <- OR_current
+    methylation_level_list[["current"]][["RR"]] <- RR_current
+    methylation_level_list[["current"]][["TCR"]] <- TCR_current
     
-    OR_current <- log2(((meth_result[["current"]][index_intersect,]+epsilon_OR)/
-                         (unmeth_result[["current"]][index_intersect,]+epsilon_OR))  /
-                         control_information_M[index_intersect])
-    RR_current <- log2(((meth_result[["current"]][index_intersect,]+epsilon_RR)/
-                          (unmeth_result[["current"]][index_intersect,]+
-                             meth_result[["current"]][index_intersect,]+epsilon_RR))  /
-                         control_information_Beta[index_intersect])
-    TCR_current <- ((meth_result[["current"]][index_intersect,]+epsilon_TCR)/
-                          (unmeth_result[["current"]][index_intersect,]
-                           +meth_result[["current"]][index_intersect,]+epsilon_TCR))- 
-                         control_information_Beta[index_intersect]
-    TCR_current[TCR_current<=0] <- 0
+    methylation_level_list[["projected"]] <- list()
+    methylation_level_list[["projected"]][["M"]] <- M_value_projected
+    methylation_level_list[["projected"]][["Beta"]] <- Beta_value_projected
+    methylation_level_list[["projected"]][["OR"]] <- OR_projected
+    methylation_level_list[["projected"]][["RR"]] <- RR_projected
+    methylation_level_list[["projected"]][["TCR"]] <- TCR_projected
     
-    OR_projected <- log2(((meth_result[["projected"]][index_intersect,]+epsilon_OR)/
-                          (unmeth_result[["projected"]][index_intersect,]+epsilon_OR))  /
-                         control_information_M[index_intersect])
-    RR_projected <- log2(((meth_result[["projected"]][index_intersect,]+epsilon_RR)/
-                          (unmeth_result[["projected"]][index_intersect,]+
-                             meth_result[["projected"]][index_intersect,]+epsilon_RR))  /
-                         control_information_Beta[index_intersect])
-    TCR_projected <- ((meth_result[["projected"]][index_intersect,]+epsilon_TCR)/
-                          (unmeth_result[["projected"]][index_intersect,]
-                           +meth_result[["projected"]][index_intersect,]+epsilon_TCR))- 
-                           control_information_Beta[index_intersect]
+    methylation_level_list[["delta"]] <- list()
+    methylation_level_list[["delta"]][["M"]] <- M_value_delta
+    methylation_level_list[["delta"]][["Beta"]] <- Beta_value_delta
+    methylation_level_list[["delta"]][["OR"]] <- OR_delta
+    methylation_level_list[["delta"]][["RR"]] <- RR_delta
+    methylation_level_list[["delta"]][["TCR"]] <- TCR_delta
     
-    TCR_projected[TCR_projected<=0] <- 0
-    OR_delta <- OR_projected - OR_current
-    RR_delta <- RR_projected - RR_current
-    TCR_delta <- TCR_projected - TCR_current
+    methylation_level_list[["p_value"]] <- p_value
+    
+    cat("done\n")
     
     
+    return(list(meth_result,unmeth_result,methylation_level_list,control_information))
   }
   
   
-  methylation_level_list <- list()
-  methylation_level_list[["current"]] <- list()
-  methylation_level_list[["current"]][["M"]] <- M_value_current
-  methylation_level_list[["current"]][["Beta"]] <- Beta_value_current
-  methylation_level_list[["current"]][["OR"]] <- OR_current
-  methylation_level_list[["current"]][["RR"]] <- RR_current
-  methylation_level_list[["current"]][["TCR"]] <- TCR_current
-  
-  methylation_level_list[["projected"]] <- list()
-  methylation_level_list[["projected"]][["M"]] <- M_value_projected
-  methylation_level_list[["projected"]][["Beta"]] <- Beta_value_projected
-  methylation_level_list[["projected"]][["OR"]] <- OR_projected
-  methylation_level_list[["projected"]][["RR"]] <- RR_projected
-  methylation_level_list[["projected"]][["TCR"]] <- TCR_projected
-  
-  methylation_level_list[["delta"]] <- list()
-  methylation_level_list[["delta"]][["M"]] <- M_value_delta
-  methylation_level_list[["delta"]][["Beta"]] <- Beta_value_delta
-  methylation_level_list[["delta"]][["OR"]] <- OR_delta
-  methylation_level_list[["delta"]][["RR"]] <- RR_delta
-  methylation_level_list[["delta"]][["TCR"]] <- TCR_delta
-  
-  methylation_level_list[["p_value"]] <- p_value
-  
-  cat("done\n")
-  
-  
-  return(list(meth_result,unmeth_result,methylation_level_list,control_information))
 }
 
 
