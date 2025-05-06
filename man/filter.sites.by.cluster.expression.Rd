@@ -4,11 +4,7 @@
 \alias{filter.sites.by.cluster.expression}
 \title{Filter sites by requirining minimum average expression within at least one of the provided cell clusters}
 \usage{
-filter.sites.by.cluster.expression(
-  emat,
-  clusters,
-  min.max.cluster.average = 0.1
-)
+\method{filter}{sites.by.cluster.expression}(emat, clusters, min.max.cluster.average = 0.1)
 }
 \arguments{
 \item{emat}{spliced (exonic) count matrix}

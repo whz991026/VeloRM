@@ -1,9 +1,9 @@
 Package: VeloRM
-Title: RNA velocity estimation in R 
+Title: Velocity of single-cell epitranscriptome unveiled the transient dynamics, regulatory mechanisms and transcriptional impact of RNA modification
 Version: 0.0.0.9000
 Authors@R: 
     person("Haozhe", "Wang", , "Haozhe.Wang17@student.xjtlu.edu.cn", role = c("aut", "cre"))
-Description: Provides basic routines for estimation of gene-specific transcriptional derivatives and visualization of the resulting velocity patterns.
+Description: RNA modifications play critical roles in regulating gene expression, yet their dynamic behavior at single-cell resolution remains largely unexplored.  To address this, we developed VeloRM, a computational framework that models the kinetics of RNA modifications—such as m⁶A methylation and A-to-I editing—by quantifying their gain and loss over pseudotime at single-nucleotide resolution.  Applying VeloRM to scDART-seq data, we uncovered distinct regulatory programs: most m⁶A modifications occur prior to splicing, though a subset arises post-splicing;  in contrast, A-to-I editing primarily takes place during or after splicing, following markedly different kinetics from m⁶A.  VeloRM accurately reconstructs modification-associated cellular trajectories and identifies stage-specific modification patterns that influence RNA fate.  Notably, m⁶A levels correlate with mRNA decay, with most regulatory effects observed in pre-mRNA, although some modification sites show a positive association with mature mRNA abundance.  Together, these findings provide new insights into the dynamic regulation of the epitranscriptome at single-cell resolution and establish a powerful framework for studying RNA modification kinetics in development and disease.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -25,5 +25,5 @@ Suggests:
     knitr,
     rmarkdown
 VignetteBuilder: knitr
-URL: https://github.com/whz991026/velocyto.r.mine
-BugReports: https://github.com/whz991026/velocyto.r.mine/issues
+URL: https://github.com/whz991026/VeloRM
+BugReports: https://github.com/whz991026/VeloRM/issues

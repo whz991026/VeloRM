@@ -301,7 +301,7 @@ site.relative.velocity.estimates <- function (
              if (is.null(fit.quantile)) {
                  d <- lm(n ~ e + offset(o) + 0, data = df, weights = df$e^4 +
                            df$n^4)
-                 pw <- rep(df$n,length(df$n))
+                 pw <- as.numeric(df$e > 0 | df$e >0)
                  return(c(o = df$o[1], g = as.numeric(coef(d)[1]),
                           r = cor(df$e, df$n, method = "spearman"),pw))
              }
