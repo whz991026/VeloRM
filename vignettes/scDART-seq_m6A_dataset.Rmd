@@ -163,7 +163,7 @@ for(i in folders){
 
 ```
 ### divide bam
-```{bash}
+```{bash eval=FALSE, include=FALSE}
 
 ###########################################################
 # File prepare
@@ -476,7 +476,8 @@ Processed data:
 
 SNP_all
 
-Frequency data: frequency_pre_YTHmut, frequency_spliced_YTHmut, frequency_spliced_YTH, frequency_spliced_YTHmut
+Frequency data: frequency_pre_YTHmut, frequency_spliced_YTHmut, frequency_spliced_YTH, frequency_spliced_YTHmut,frequency_isoform_YTH,
+frequency_isoform_YTHmut
 
 Downloaded data (from https://www.cell.com/cell-genomics/fulltext/S2666-979X(24)00331-8):
 
@@ -1887,6 +1888,7 @@ index_spliced_high_pre_low <- which(spliced_methylation_OR_value_meta-unspliced_
 
 #### metaTX plot 
 ```{r}
+library(MetaTX)
 intersect_pre_dominate <- intersect(intersect(index_pre_high_spliced_low,index_pre_siginificant_spliced_insiginificant),index_differentially_meth)
 
 intersect_spliced_dominate <- intersect(intersect(index_spliced_high_pre_low,index_spliced_siginificant_pre_insiginificant),index_differentially_meth)
@@ -1999,10 +2001,6 @@ compare_metaTX_plot_2 <-ggplot(combined_data, aes(x = x, y = y, color = Group))+
   theme(
     legend.position = c(0.8, 0.7)  )+xlab(NULL)+ylab(NULL)
 
-
-saveRDS(intersect_pre_dominate,"D:/data/VeloRM_data/scDART-seq/results/regulatory_mechanisms/index_pre_dominate.rds")
-saveRDS(intersect_spliced_dominate,"D:/data/VeloRM_data/scDART-seq/results/regulatory_mechanisms/index_spliced_dominate.rds")
-saveRDS(index_not_dominate,"D:/data/VeloRM_data/scDART-seq/results/regulatory_mechanisms/index_not_dominate.rds")
 ```
 
 #### motif plot
