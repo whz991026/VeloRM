@@ -315,7 +315,20 @@ embArrows <- function(emb, tp,rm_uniform="mode1", arrow.scale = 1.0,n.cores=1) {
 
   return(dm)
 }
-
+#' Filter sites by requiring minimum average expression within at least one of the provided cell clusters
+#'
+#' @param emat spliced (exonic) count matrix
+#' @param clusters named cell factor defining clusters
+#' @param min.max.cluster.average required minimum average expression count (no normalization is perfomed)
+#' @return filtered emat matrix
+#' @export
+filter_sites_by_cluster_expression <- function(emat,clusters,min.max.cluster.average=0.1) {
+  if(!any(colnames(emat) %in% names(clusters))) stop("provided clusters do not cover any of the emat cells!")
+  vc <- intersect(colnames(emat),names(clusters))
+  cl.emax <- apply(do.call(cbind,tapply(vc,as.factor(clusters[vc]),function(ii) Matrix::rowMeans(emat[,ii]))),1,max)
+  vi <- cl.emax>min.max.cluster.average;
+  emat[vi,]
+}
 
 # quick self-naming vector routine
 sn <- function(x) { names(x) <- x; x}
@@ -366,20 +379,7 @@ val2col <- function(x,gradientPalette=NULL,zlim=NULL,gradient.range.quantile=0.9
   gp
 }
 
-##' Filter sites by requirining minimum average expression within at least one of the provided cell clusters
-##'
-##' @param emat spliced (exonic) count matrix
-##' @param clusters named cell factor defining clusters
-##' @param min.max.cluster.average required minimum average expression count (no normalization is perfomed)
-##' @return filtered emat matrix
-##' @export
-filter.sites.by.cluster.expression <- function(emat,clusters,min.max.cluster.average=0.1) {
-  if(!any(colnames(emat) %in% names(clusters))) stop("provided clusters do not cover any of the emat cells!")
-  vc <- intersect(colnames(emat),names(clusters))
-  cl.emax <- apply(do.call(cbind,tapply(vc,as.factor(clusters[vc]),function(ii) Matrix::rowMeans(emat[,ii]))),1,max)
-  vi <- cl.emax>min.max.cluster.average;
-  emat[vi,]
-}
+
 
 #' the diffusion density plot
 #'
