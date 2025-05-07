@@ -1973,7 +1973,7 @@ region_rects$ymin[region_rects$Region == "CDS"] <- region_rects$ymin[region_rect
 region_rects$ymax[region_rects$Region == "CDS"] <- region_rects$ymin[region_rects$Region == "CDS"] + cds_height  # Increase ymax for CDS
 
 
-compare_metaTX_plot_2 <-ggplot(combined_data, aes(x = x, y = y, color = Group))+
+compare_metaTX_plot <-ggplot(combined_data, aes(x = x, y = y, color = Group))+
   geom_line(size=1)+
     # Add region highlights using geom_rect, with consistent positioning across all facets
     geom_rect(data = region_rects, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = Region),
@@ -2000,7 +2000,7 @@ compare_metaTX_plot_2 <-ggplot(combined_data, aes(x = x, y = y, color = Group))+
 ),name = "Higher on")+theme_minimal()+
   theme(
     legend.position = c(0.8, 0.7)  )+xlab(NULL)+ylab(NULL)
-
+compare_metaTX_plot
 ```
 
 #### motif plot
