@@ -21,7 +21,7 @@ library(VeloRM)
 ### data download
 https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE180954 
 ### alignment
-```{bash eval=FALSE, include=FALSE}
+```{bash eval=FALSE}
 (nohup trim_galore --paired -o /home/share/bowen/scDART/data/YTHcell_',i,' /home/share/bowen/scDART/data/YTHcell_',i,'/',sra,'_1.fastq',' /home/share/bowen/scDART/data/YTHcell_',i,'/',sra,'_2.fastq)&
   
 (nohup STAR --runThreadN 10 --runMode genomeGenerate --genomeDir /home/share/bowen/genome/hg38/star_indx/ --genomeFastaFiles /home/share/bowen/genome/hg38/Homo_sapiens.GRCh38.dna.primary_assembly.fa --sjdbGTFfile /home/share/bowen/genome/hg38/Homo_sapiens.GRCh38.109.gtf --sjdbOverhang 150 > /home/share/bowen/genome/hg38/star_indx/build_index.out)&   
@@ -32,13 +32,13 @@ https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE180954
 
 ```
 ### variant calling
-```{bash eval=FALSE, include=FALSE}
+```{bash eval=FALSE}
 samtools sort -o /home/share/bowen/scDART/data/YTHcell_1/bam/SRR15268889_sorted.bam /home/share/bowen/scDART/data/YTHcell_1/bam/SRR15268889Aligned.out.bam
 
 bcftools mpileup -f /home/share/bowen/genome/hg38/Homo_sapiens.GRCh38.dna.primary_assembly.fa /home/share/bowen/scDART/data/YTHcell_1/bam/SRR15268889_sorted.bam | bcftools call -mv -Oz -o /home/share/bowen/scDART/data/YTHcell_1/bam/SRR15268889_calls.vcf 
 ```
 ### find relevant mutation
-```{r eval=FALSE, include=FALSE}
+```{r eval=FALSE}
 data <- read.vcfR(SRR15268889_calls.vcf)
 
 data2 <- as.data.frame(data@fix)
@@ -128,7 +128,7 @@ saveRDS(gr_all,'/home/share/bowen/scDART/SNP_all.rds')
 
 ###  Quality control
 
-```{bash eval=FALSE, include=FALSE}
+```{bash eval=FALSE}
 
 
 setwd('/home/share/bowen/velocity/')
@@ -163,7 +163,7 @@ for(i in folders){
 
 ```
 ### divide bam
-```{bash eval=FALSE, include=FALSE}
+```{bash eval=FALSE}
 
 ###########################################################
 # File prepare
@@ -226,7 +226,7 @@ for(i in folders){
 
 ```
 ### base counting
-```{r eval=FALSE, include=FALSE}
+```{r eval=FALSE}
 ###########################################################
 ### base counting for spliced and unspliced isoform bam
 ###########################################################
@@ -489,7 +489,7 @@ label_SigRM
 
 ## pre-process
 ### extract the modification read counts and un-modification read counts
-```{r eval=FALSE, include=FALSE}
+```{r eval=FALSE}
 
 ##  pre_YTH 
 
@@ -498,7 +498,7 @@ label_SigRM
 frequency_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/frequency_pre_YTH.rds")
 
 
-testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/SNP_all_7374.rds")
+testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/SNP_all.rds")
 
 
 head(frequency_all[[1]])
@@ -590,7 +590,7 @@ saveRDS(methylation_rate,"methylation_rate_pre_YTH.rds")
 frequency_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/frequency_pre_YTHmut.rds")
 
 
-testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/SNP_all_7374.rds")
+testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/SNP_all.rds")
 
 
 head(frequency_all[[1]])
@@ -685,7 +685,7 @@ saveRDS(methylation_rate,"methylation_rate_pre_YTHmut.rds")
 frequency_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/frequency_spliced_YTH.rds")
 
 
-testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/SNP_all_7374.rds")
+testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/SNP_all.rds")
 
 
 head(frequency_all[[1]])
@@ -780,7 +780,7 @@ saveRDS(methylation_rate,"methylation_rate_spliced_YTH.rds")
 frequency_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/frequency_spliced_YTHmut.rds")
 
 
-testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/SNP_all_7374.rds")
+testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/SNP_all.rds")
 
 
 head(frequency_all[[1]])
@@ -874,7 +874,7 @@ saveRDS(methylation_rate,"methylation_rate_spliced_YTHmut.rds")
 frequency_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/frequency_isoform_YTH.rds")
 
 
-testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/SNP_all_7374.rds")
+testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/SNP_all.rds")
 
 
 head(frequency_all[[1]])
@@ -968,7 +968,7 @@ saveRDS(methylation_rate,"methylation_rate_isoform_YTH.rds")
 frequency_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/frequency_isoform_YTHmut.rds")
 
 
-testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/SNP_all_7374.rds")
+testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/SNP_all.rds")
 
 
 head(frequency_all[[1]])
@@ -1055,7 +1055,7 @@ saveRDS(error_reads_list,"error_reads_list_isoform_YTHmut.rds")
 saveRDS(methylation_rate,"methylation_rate_isoform_YTHmut.rds")
 ```
 ### calculate the error rate for site
-```{r eval=FALSE, include=FALSE}
+```{r eval=FALSE}
 # calculate teh meta_error_rate for each site
 
 ## isoform
@@ -1193,7 +1193,7 @@ saveRDS(error_rate_meta_pre,"/gpfs/work/bio/haozhewang17/data/VeloRM_data/pre_pr
 ```
 ### filter the site 
 From 1,599 cells (1,209 test cells and 390 YTH domain-mutated negative controls), we initially extracted 2,371,331 candidate sites. We applied stringent quality filters, excluding sites with either: (1) an error rate exceeding 1%, or (2) median read coverage below 10 in spliced mRNA or unspliced mRNA. This yielded 37,199 high-confidence m6A sites for downstream analysis.
-```{r eval=FALSE, include=FALSE}
+```{r eval=FALSE}
 # Load necessary library
 library(VeloRM)
 
@@ -1315,12 +1315,12 @@ saveRDS(test.list,"/gpfs/work/bio/haozhewang17/data/VeloRM_data/pre_process/test
 saveRDS(control.list,"/gpfs/work/bio/haozhewang17/data/VeloRM_data/pre_process/control.list.rds")
 saveRDS(res_preprocess,"/gpfs/work/bio/haozhewang17/data/VeloRM_data/pre_process/res_preprocess.rds")
 
-SNP <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/SNP_all_7374.rds")
+SNP <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/origin/SNP_all.rds")
 SNP_index <- SNP[index]
 saveRDS(SNP_index,"/gpfs/work/bio/haozhewang17/data/VeloRM_data/pre_process/SNP_37199.rds")
 ```
 ### DESeq2 to test the differential methylation between the spliced mRNA and pre-mRNA
-```{r eval=FALSE, include=FALSE}
+```{r eval=FALSE}
 # Load input data
 test.list <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/pre_process/test.list.rds")
 
@@ -1417,7 +1417,7 @@ print(end_time - start_time)
 saveRDS(result, "/gpfs/work/bio/haozhewang17/data/VeloRM_data/pre_process/res_DESeq2.rds")
 ```
 ### SigRM to test the differential methylation between the test cell and control group
-```{r eval=FALSE, include=FALSE}
+```{r eval=FALSE}
 test.list <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/pre_process/test.list.rds")
 control.list <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/pre_process/control.list.rds")
 
@@ -1456,8 +1456,118 @@ res_DESeq2: the DESeq2 results
 SigRMtest_res_unspliced: the SigRM test results comparing to the control for unspliced read counts
 SigRMtest_res_spliced: the SigRM test results comparing to the control for spliced read counts
 ## analysis
-### splicing junction distance of the SNP sites
-```{r eval=FALSE, include=FALSE}
+### Overall reads counts analysis
+```{r warning=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+counts_data <- read.csv("D:/data/VeloRM_data/scDART-seq/origin/bam_read_counts.csv", 
+                       header = TRUE,  # Assumes first row contains column names
+                       stringsAsFactors = FALSE)  # Prevents automatic conversion to factors
+
+# View the first few rows
+
+counts_data_sum <- apply(counts_data,1,function(x) sum(as.numeric(x[2:4])))
+isoform_prop <- as.numeric(counts_data[,2])/counts_data_sum
+spliced_prop <- as.numeric(counts_data[,3])/counts_data_sum
+pre_prop <- as.numeric(counts_data[,4])/counts_data_sum
+
+df <- data.frame(
+  `mature RNA` = spliced_prop,
+  `pre RNA` = pre_prop,
+  `ambiguous` = isoform_prop,
+  check.names = FALSE
+)
+df_long <- pivot_longer(df, cols = everything(), 
+                       names_to = "Type", 
+                       values_to = "Probability")
+
+box_plot <- ggplot(df_long, aes(x = "", y = Probability, fill = Type)) +  
+    geom_violin(alpha = 0.6, width = 0.7) +
+    geom_boxplot(width = 0.2, alpha = 0.8, 
+                 outlier.shape = NA,
+                 coef = 0) + 
+    facet_wrap(~Type, scales = "free_y", ncol = 3) +  
+    labs(
+        title = NULL,
+        x = NULL,  
+        y = "Probability"
+    ) +
+    # Use theme_gray() which is the default ggplot2 theme
+    theme_gray(base_size = 14)  +
+    scale_fill_manual(
+        values = c("mature RNA" = "#FF9999",  
+                   "pre RNA" = "#99CCFF",     
+                   "ambiguous" = "#99CC99"),   
+        breaks = c("mature RNA", "pre RNA", "ambiguous") 
+    )+
+  theme(
+    legend.position = "none"
+  )
+
+box_plot
+
+# Create a data frame with the summed proportions
+plot_data <- data.frame(
+  category = c("Spliced", "Unspliced"),
+  proportion = c(sum(counts_data[,3]), sum(counts_data[,4]))
+)
+
+# Create the barplot
+barplot <- ggplot(plot_data, aes(x = category, y = proportion, fill = category)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  geom_text(aes(label = round(proportion, 2)), vjust = -0.5, size = 5) + # Add values on top
+  scale_fill_manual(values = c("Spliced" = "salmon", "Unspliced" = "steelblue")) +
+  labs(title = NULL,
+       x = NULL,
+       y = "Total read counts") +
+  theme_grey(base_size = 14) + # Using theme_grey with larger base font size
+  theme(legend.position = "none", # Remove legend
+        plot.title = element_text(hjust = 0.5)) +# Center title
+  coord_cartesian(ylim = c(0,4.5e9))
+barplot
+
+
+# SigRMtest_res_spliced_overall <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SigRMtest_res_spliced_overall.rds")
+# SigRMtest_res_spliced_overall_pvalue_median <- apply(SigRMtest_res_spliced_overall$`p value`,1,function(x) median(x,na.rm = TRUE))
+SigRMtest_res_spliced_overall_pvalue_median <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SigRMtest_res_spliced_overall_pvalue_median.rds")
+spliced_index <- which(SigRMtest_res_spliced_overall_pvalue_median<=0.05)
+# 
+# SigRMtest_res_unspliced_overall <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SigRMtest_res_unspliced_overall.rds")
+# SigRMtest_res_unspliced_overall_pvalue_median <- apply(SigRMtest_res_unspliced_overall$`p value`,1,function(x) median(x,na.rm = TRUE))
+SigRMtest_res_unspliced_overall_pvalue_median <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SigRMtest_res_unspliced_overall_pvalue_median.rds")
+unspliced_index <- which(SigRMtest_res_unspliced_overall_pvalue_median<=0.05)
+
+spliced_index_l <- length(spliced_index)
+unspliced_index_l <- length(unspliced_index)
+intersect_l <- length(intersect(spliced_index,unspliced_index))
+
+
+library(VennDiagram)
+
+venn <-draw.pairwise.venn(
+  area1 = spliced_index_l,
+  area2 = unspliced_index_l,
+  cross.area = intersect_l,
+  category = c("Spliced", "Unspliced"),
+  fill = c("#E74C3C","skyblue"),
+  alpha = 0.5,
+  lty = "blank",
+  cex = 2,
+  cat.cex = 1.5
+)
+grid.newpage()
+grid.draw(venn)
+```
+
+
+
+
+
+
+### splicing jucntion distance
+```{r eval=FALSE}
 library(GenomicRanges)
 library(rtracklayer)
 library(dplyr)
@@ -1596,15 +1706,7 @@ real_distances_df <- data.frame(
 all_distances_df <- bind_rows(random_distances_df, real_distances_df)
 group_order <- c("Real","Random")
 all_distances_df$group <- factor(all_distances_df$group, levels = group_order)
-
-saveRDS(all_distances_df,"D:/data/VeloRM_data/scDART-seq/results/splicing_junction_analysis/all_distances_df.rds")
-
-```
-#### visulization
-We can see that the SNP is close to the splicing junction comparing to random sample
-```{r}
 library(ggplot2)
-all_distances_df <- readRDS("D:/data/VeloRM_data/scDART-seq/results/splicing_junction_analysis/all_distances_df.rds")
 #  Boxplot
 plot <- ggplot(all_distances_df, aes(x = group, y = log10(distance+1), fill = group)) +
  geom_violin(trim = FALSE, alpha = 0.5) +
@@ -1613,148 +1715,34 @@ plot <- ggplot(all_distances_df, aes(x = group, y = log10(distance+1), fill = gr
  labs(title = NULL,
       x = NULL,
       y = "log10(Distance (bp)+1)") +
- theme_minimal() +
+ theme_grey() +
+ theme(plot.title = element_text(hjust = 0.5),
+       legend.position = "none")+coord_cartesian(ylim = c(0,5))
+
+
+saveRDS(all_distances_df,"D:/data/VeloRM_data/scDART-seq/results/splicing_junction_analysis/all_distances_df.rds")
+
+```
+#### vis
+```{r warning=FALSE}
+ all_distances_df <- readRDS("D:/data/VeloRM_data/scDART-seq/results/splicing_junction_analysis/all_distances_df.rds")
+
+library(ggplot2)
+#  Boxplot
+plot <- ggplot(all_distances_df, aes(x = group, y = log10(distance+1), fill = group)) +
+ geom_violin(trim = FALSE, alpha = 0.5) +
+ geom_boxplot(width = 0.1, outlier.shape = NA)+
+ scale_fill_manual(values = c("red",rep("lightblue", 10))) +
+ labs(title = NULL,
+      x = NULL,
+      y = "log10(Distance (bp)+1)") +
+ theme_grey() +
  theme(plot.title = element_text(hjust = 0.5),
        legend.position = "none")+coord_cartesian(ylim = c(0,5))
 plot
-
 ```
-### overall analysis
-#### overall reads counts
-```{r}
-rm(list = ls())
-gc()
-# Load input data
-test.list <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/test.list.rds")
-
-# Extract different parts of the data
-spliced.meth.test <- test.list[[1]]  # Methylated spliced data
-spliced.unmeth.test <- test.list[[2]]  # Unmethylated spliced data
-unspliced.meth.test <- test.list[[3]]  # Methylated unspliced data
-unspliced.unmeth.test <- test.list[[4]]  # Unmethylated unspliced data
-
-
-# Load input data
-control.list <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/control.list.rds")
-
-# Extract different parts of the data
-spliced.meth.control <- control.list[[1]]  # Methylated spliced data
-spliced.unmeth.control <- control.list[[2]]  # Unmethylated spliced data
-unspliced.meth.control <- control.list[[3]]  # Methylated unspliced data
-unspliced.unmeth.control <- control.list[[4]]  # Unmethylated unspliced data
-
-spliced.meth.sum <- sum(spliced.meth.test)+sum(spliced.meth.control)
-spliced.unmeth.sum <- sum(spliced.unmeth.test)+sum(spliced.unmeth.control)
-unspliced.meth.sum <- sum(unspliced.meth.test)+sum(unspliced.meth.control)
-unspliced.unmeth.sum <- sum(unspliced.unmeth.test)+sum(unspliced.unmeth.control)
-
-
-# spliced.meth.sum, spliced.unmeth.sum, unspliced.meth.sum, unspliced.unmeth.sum
-
-# Load required libraries
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-
-# Create a data frame
-data <- data.frame(
-  category = c("mature mRNA", "pre mRNA"),  # spliced = mature mRNA, unspliced = pre mRNA
-  meth = c(spliced.meth.sum, unspliced.meth.sum),      # methylated counts
-  unmeth = c(spliced.unmeth.sum, unspliced.unmeth.sum) # unmethylated counts
-)
-
-# Calculate proportions
-data <- data %>%
-  mutate(
-    total = meth + unmeth,                # total counts for each category
-    meth_ratio = meth / total             # methylation proportion
-  )
-
-# Calculate mature mRNA (spliced) proportion of total
-spliced_ratio <- (spliced.meth.sum + spliced.unmeth.sum) / 
-                 (spliced.meth.sum + spliced.unmeth.sum + 
-                  unspliced.meth.sum + unspliced.unmeth.sum)
-
-# Visualization 1: Pie chart of mature mRNA vs pre mRNA proportion
-pie_data <- data.frame(
-  group = c("mature mRNA", "pre mRNA"),
-  value = c(spliced_ratio, 1 - spliced_ratio)
-)
-
-ggplot(pie_data, aes(x = "", y = value, fill = group)) +
-  geom_bar(stat = "identity", width = 1) +
-  coord_polar("y", start = 0) +
-  geom_text(aes(label = paste0(round(value*100, 1), "%")), 
-            position = position_stack(vjust = 0.5)) +
-  labs(title = "mature mRNA/(mature mRNA + pre mRNA) Ratio") +
-  theme_void()
-
-# Visualization 2: Bar plot of methylation ratio in each category
-ggplot(data, aes(x = category, y = meth_ratio, fill = category)) +
-  geom_bar(stat = "identity") +
-  geom_text(aes(label = paste0(round(meth_ratio*100, 1), "%")), vjust = -0.5) +
-  scale_y_continuous(labels = scales::percent, limits = c(0, 0.008)) +
-  labs(title = "Methylation Ratio in Spliced and Unspliced",
-       y = "Methylation Ratio",
-       x = "") +
-  theme_minimal()
-
-```
-
-#### read the SigRM results
-```{r}
-res_DESeq2 <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/res_DESeq2.rds")
-
-log2FC <- res_DESeq2@listData[["log2FoldChange"]]
-pvals <- res_DESeq2@listData[["pvalue"]]
-
-plot_data <- data.frame(log2FC = log2FC, 
-                       pvalue = pvals,
-                       neg_log10_p = -log10(pvals))
-
-
-ggplot(plot_data, aes(x = log2FC, y = neg_log10_p)) +
-  # Add light gray background for -1 < log2FC < 1 (non-significant FC region)
-  annotate("rect", xmin = -1, xmax = 1, ymin = 0, ymax = 30, 
-           fill = "gray90", alpha = 0.3) +
-  
-  # Color points based on significance and log2FC:
-  # - Red: log2FC > 1 & p < 0.05 (significantly up-regulated)
-  # - Blue: log2FC < -1 & p < 0.05 (significantly down-regulated)
-  # - Gray: Not significant or |log2FC| â‰¤ 1
-  geom_point(aes(color = case_when(
-    log2FC > 1 & pvalue < 0.05 ~ "Spliced",
-    log2FC < -1 & pvalue < 0.05 ~ "Unspliced",
-    TRUE ~ "Not significant"
-  )), alpha = 0.6) +
-  
-  # Manual color scale (red, blue, gray)
-  scale_color_manual(
-    values = c(
-      "Spliced" = "red",
-      "Unspliced" = "blue",
-      "Not significant" = "gray50"
-    ),
-    name = "Regulation"  # Legend title
-  ) +
-  
-  # Add dashed lines for thresholds:
-  # - Vertical: log2FC = Â±1
-  # - Horizontal: p-value = 0.05 (-log10(0.05) â‰ˆ 1.3)
-  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "black") +
-  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") +
-  
-  # Axis labels and theme
-  labs(
-    x = "log2 Fold Change", 
-    y = "-log10(p-value)",
-    title = NULL
-  ) +
-  theme_minimal() +
-  
-  # Set axis limits (zoomed-in view)
-  coord_cartesian(ylim = c(0, 30), xlim = c(-4, 4))
-
+### SigRM results
+```{r warning=FALSE}
 
 SigRMtest_res_spliced <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SigRMtest_res_spliced.rds")
 SigRMtest_res_unspliced <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SigRMtest_res_unspliced.rds")
@@ -1768,7 +1756,6 @@ SigRMtest_res_spliced_p_value_median <- apply(SigRMtest_res_spliced_p_value,1,fu
 SigRMtest_res_unspliced_p_value_median <- apply(SigRMtest_res_unspliced_p_value,1,function(x) median(x,na.rm=TRUE))
 
 
-index_DESeq2_significant <- which(res_DESeq2@listData$pvalue<=0.05)
 # Compute -log10(p-values)
 log_p_spliced <- -log10(SigRMtest_res_spliced_p_value_median)
 log_p_unspliced <- -log10(SigRMtest_res_unspliced_p_value_median)
@@ -1776,94 +1763,200 @@ log_p_unspliced <- -log10(SigRMtest_res_unspliced_p_value_median)
 # Create a combined dataframe for plotting
 library(ggplot2)
 df <- data.frame(
-  log_p_value = c(log_p_spliced[index_DESeq2_significant], log_p_unspliced[index_DESeq2_significant]),
-  Type = rep(c("Spliced", "Unspliced"), each = length(log_p_spliced[index_DESeq2_significant]))
+  log_p_value = c(log_p_spliced, log_p_unspliced),
+  Type = rep(c("Spliced", "Unspliced"), each = length(log_p_spliced))
 )
 
 # comparison the distribution
 comparison_distribution <- ggplot(df, aes(x = log_p_value, fill = Type)) +
-  geom_density(alpha = 0.5, bw = 0.3) +  # Adjust bw for smoothness
+  geom_density(alpha = 0.5, bw = 0.6) +  # Adjust bw for smoothness
   geom_vline(xintercept = -log10(0.05), linetype = "dashed", color = "red", linewidth = 1) +  # Add vertical line
-    annotate("text", x = -log10(0.05)+0.05, y = 0.5, label = "p-value = 0.05", color = "red", hjust = 0) +
+    annotate("text", x = -log10(0.05)+0.05, y = 0.5, label = "p-value = 0.05", color = "red", hjust = 0,size=5) +
   labs(title = "Median p-value Distribution",
        x = "-log10(p-value)",
-       y = "Density") +
-  theme_minimal() +
-  coord_cartesian(xlim = c(0, 3.5))+
-  theme(legend.position = c(0.8, 0.8),
-        plot.title = element_text(hjust = 0.5, vjust = 2))  # Move legend inside the plot
+       y = "Density")  +
+  coord_cartesian(xlim = c(0, 3.5)) +
+  theme_grey(base_size = 14)+
+  theme(
+    legend.position = c(0.8, 0.8),  # Adjust legend inside the plot
+    plot.title = element_text(hjust = 0.5, vjust = 2),  # Centered & bold title
+    legend.background = element_blank()  # Improve legend visibility
+  )
 comparison_distribution
 
-# the meta OR infomation
-res_preprocess <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/res_preprocess.rds")
+library(ggvenn)
 
-# want the site p_value<=0.05, meta log2(OR) >=1
-spliced_num_sites <- length(which(SigRMtest_res_spliced_p_value_median<=0.05&res_preprocess$spliced_methylation_OR_value_meta-res_preprocess$unspliced_methylation_OR_value_meta>=1&res_DESeq2@listData$pvalue<=0.05))
-unspliced_num_sites <- length(which(SigRMtest_res_unspliced_p_value_median<=0.05&res_preprocess$unspliced_methylation_OR_value_meta-res_preprocess$spliced_methylation_OR_value_meta>=1&res_DESeq2@listData$pvalue<=0.05))
+sig_spliced <- which(SigRMtest_res_spliced_p_value_median <= 0.05)
+sig_unspliced <- which(SigRMtest_res_unspliced_p_value_median <= 0.05)
 
-Other_num_sites <- length(SigRMtest_res_spliced_p_value_median) - spliced_num_sites -unspliced_num_sites
+# Create a named list for the Venn diagram
+venn_list <- list(
+  Spliced = sig_spliced,
+  Unspliced = sig_unspliced
+)
+ggvenn(venn_list,fill_alpha = 0.7,stroke_size = 0.5)
 
+```
+
+### read the DESeq2 results
+```{r warning=FALSE}
 library(ggplot2)
+library(dplyr)
+library(tidyr)
 
-# Create a data frame for pie chart
-df_pie <- data.frame(
-  Type = c("Spliced", "Unspliced", "Other"),
-  Count = c(spliced_num_sites, unspliced_num_sites, Other_num_sites)
+res_DESeq2 <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/res_DESeq2.rds")
+
+
+log2FC <-res_DESeq2@listData[["log2FoldChange"]]
+pvals <- res_DESeq2@listData[["pvalue"]]
+
+plot_data <- data.frame(log2FC = log2FC, 
+                       pvalue = pvals,
+                       neg_log10_p = -log10(pvals))
+set.seed(42)
+plot_data_5000_sample <- plot_data[sample(1:37199,5000),]
+
+volcano_plot_DESeq2 <- ggplot(plot_data_5000_sample, aes(x = log2FC, y = neg_log10_p)) +
+  # Add light gray background for -1 < log2FC < 1 (non-significant FC region)
+  annotate("rect", xmin = -1, xmax = 1, ymin = 0, ymax = 30, 
+           fill = "gray90", alpha = 0.3) +
+  
+  # Color points based on significance and log2FC:
+  # - Red: log2FC > 1 & p < 0.05 (significantly up-regulated)
+  # - Blue: log2FC < -1 & p < 0.05 (significantly down-regulated)
+  # - Gray: Not significant or |log2FC| ≤ 1
+  geom_point(aes(color = case_when(
+    log2FC > 1 & pvalue < 0.05 ~ "Unspliced",
+    log2FC < -1 & pvalue < 0.05 ~ "Spliced",
+    TRUE ~ "Not significant"
+  )), alpha = 0.3) +
+  
+  # Manual color scale (red, blue, gray)
+  scale_color_manual(
+    values = c(
+      "Spliced" = "red",
+      "Unspliced" = "blue",
+      "Not significant" = "gray50"
+    ),
+    name = "Regulation"  # Legend title
+  ) +
+  
+  # Add dashed lines for thresholds:
+  # - Vertical: log2FC = ±1
+  # - Horizontal: p-value = 0.05 (-log10(0.05) ≈ 1.3)
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "black") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") +
+  
+  # Axis labels and theme
+  labs(
+    x = "log2 Fold Change", 
+    y = "-log10(p-value)",
+    title = NULL
+  ) +
+   theme_grey() +
+   # Set axis limits (zoomed-in view)
+   coord_cartesian(ylim = c(0, 30),xlim = c(-4, 4))
+volcano_plot_DESeq2
+
+n_unspliced <- length(which(log2FC >= 1 & pvals <= 0.05))  
+n_spliced <- length(which(log2FC <= -1 & pvals <= 0.05))  
+n_nonsig <- sum(pvals > 0.05 | (log2FC > -1 & log2FC < 1))
+
+total <- n_unspliced + n_spliced + n_nonsig
+Percentage <- round(c(n_unspliced, n_spliced, n_nonsig) / total * 100, 1)
+
+df <- data.frame(
+  Category = c("Unspliced", "Spliced", "Insignificant"),
+  Count = c(n_unspliced, n_spliced, n_nonsig)
 )
 
-# Calculate percentages
-df_pie$Percentage <- round(df_pie$Count / sum(df_pie$Count) * 100, 1)
 
-# Create separate data frames for each piece of text you want to display
-df_pie$text_count <- as.character(df_pie$Count)
-df_pie$text_percentage <- paste0(df_pie$Percentage, "%")
 
-# Define custom colors
-#custom_colors <- c( "#ef767b","#f9e7a7", "#43a3ef")
-
-# Plot the pie chart with 4 separate texts
-pie_chart <- ggplot(df_pie, aes(x = "", y = Count, fill = Type)) +
-  geom_bar(stat = "identity", width = 1) +  
-  coord_polar("y", start = 0) +  # Convert to pie chart
-  geom_text(aes(label = text_count), 
-            position = position_stack(vjust = 0.15), size = 5) +  # Position for the number
-  geom_text(aes(label = text_percentage), 
-            position = position_stack(vjust = 0.85), size = 5) +  # Apply custom colors
-  labs(title = "Significant Sites Proportion") +
-  theme_minimal() +
+pie_chart_DESeq2 <- ggplot(df, aes(x = "", y = Count, fill = Category)) +
+  geom_bar(stat = "identity", width = 1, color = "white",alpha=0.6) +
+  coord_polar("y", start = 0) + 
+  geom_text(aes(label = paste0(Count, "\n(", Percentage, "%)")), 
+            position = position_stack(vjust = 0.5), size = 5) +
+  scale_fill_manual(values = c("Unspliced" = "blue", "Spliced" = "red","Insignificant"="gray50")) +
+  labs(
+    title = NULL,
+    x = NULL,
+    y = NULL
+  ) +
+  theme_void() +
   theme(
-    axis.title.x = element_blank(),  # Remove x-axis title
-    axis.text.x = element_blank(),   # Remove x-axis labels
-    axis.ticks = element_blank(),    # Remove x-axis ticks
-    panel.grid = element_blank(),    # Remove grid
-    axis.title.y = element_blank(),
-    plot.title = element_text(hjust = 0.5, vjust = 0, size = 14),  # Move title outside center
-    legend.title = element_text(size = 10),  # Larger legend title text
-    legend.text = element_text(size = 8),  # Larger legend labels
-    legend.key.size = unit(0.8, "cm")  # Increase the size of the legend keys (colors)
+    legend.position = "none"  
   )
 
-print(pie_chart)
+pie_chart_DESeq2
 ```
-### regulatory mechanisms
-#### Find the site that is differentially methylated in spliced and pre-mRNA.
-```{r}
-rm(list = ls())
-gc()
+
+### meth density
+```{r warning=FALSE}
+
+# Load input data
+test.list <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/test.list.rds")
+
+# Extract different parts of the data
+spliced.meth.test <- test.list[[1]]  # Methylated spliced data
+spliced.unmeth.test <- test.list[[2]]  # Unmethylated spliced data
+unspliced.meth.test <- test.list[[3]]  # Methylated unspliced data
+unspliced.unmeth.test <- test.list[[4]]  # Unmethylated unspliced data
+isoform.meth.test <- test.list[[5]]  # Methylated isoform data
+isoform.unmeth.test <- test.list[[6]]  # Unmethylated isoform data
+
+
+
+
+
+spliced.meth.sum.cell <- apply(spliced.meth.test,2,sum)#,apply(spliced.meth.control,2,sum))
+spliced.unmeth.sum.cell <- apply(spliced.unmeth.test,2,sum)#,apply(spliced.unmeth.control,2,sum))
+unspliced.meth.sum.cell <- apply(unspliced.meth.test,2,sum)#,apply(unspliced.meth.control,2,sum))
+unspliced.unmeth.sum.cell <- apply(unspliced.unmeth.test,2,sum)#,apply(unspliced.unmeth.control,2,sum))
+isoform.meth.sum.cell <- apply(isoform.meth.test,2,sum)#,apply(unspliced.meth.control,2,sum))
+isoform.unmeth.sum.cell <- apply(isoform.unmeth.test,2,sum)#,apply(unspliced.unmeth.control,2,sum))
+
+spliced.sum.cell <- spliced.meth.sum.cell + spliced.unmeth.sum.cell
+unspliced.sum.cell <- unspliced.meth.sum.cell + unspliced.unmeth.sum.cell
+isoform.sum.cell <- isoform.meth.sum.cell + isoform.unmeth.sum.cell
+
+spliced.prob.cell <- spliced.sum.cell/(spliced.sum.cell+unspliced.sum.cell+isoform.sum.cell)
+unspliced.prob.cell <- unspliced.sum.cell/(spliced.sum.cell+unspliced.sum.cell+isoform.sum.cell)
+isoform.prob.cell <- isoform.sum.cell/(spliced.sum.cell+unspliced.sum.cell+isoform.sum.cell)
+
+
+spliced.cell.prob <- spliced.meth.sum.cell/(spliced.unmeth.sum.cell+spliced.meth.sum.cell)
+unspliced.cell.prob <- unspliced.meth.sum.cell/(unspliced.unmeth.sum.cell+unspliced.meth.sum.cell)
+
+df <- data.frame(
+  Probability = c(spliced.cell.prob, unspliced.cell.prob),
+  Type = rep(c("mature RNA", "pre RNA"), 
+             c(length(spliced.cell.prob), length(unspliced.cell.prob)))
+)
+
+# Create the density plot
+ggplot(df, aes(x = Probability, fill = Type)) +
+  geom_density(alpha = 0.3) +
+  labs(title = "Density Plot of Methylation Probabilities",
+       x = "Methylation Probability",
+       y = "Density") +
+  theme_grey() +
+  coord_cartesian(xlim=c(0,0.03))+
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14),
+    legend.position = c(0.7, 0.7),
+    legend.background = element_blank())
+```
+
+### Regulatory mechanisms
+#### Finding that the sites in pre-mRNA are significant compared to the control but insignificant in spliced mRNA, as well as sites in spliced mRNA being significant compared to the control but insignificant in pre-mRNA.
+```{r warning=FALSE}
 library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 library(MetaTX)
 library(ggplot2)
 library(dplyr)
 
-res_DESeq2 <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/res_DESeq2.rds")
 
-
-index_differentially_meth <- which(res_DESeq2@listData$pvalue<=0.05)
-
-
-```
-#### Finding that the sites in pre-mRNA are significant compared to the control but insignificant in spliced mRNA, as well as sites in spliced mRNA being significant compared to the control but insignificant in pre-mRNA.
-```{r}
 SigRMtest_res_spliced <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SigRMtest_res_spliced.rds")
 SigRMtest_res_unspliced <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SigRMtest_res_unspliced.rds")
 
@@ -1876,7 +1969,7 @@ index_spliced_siginificant_pre_insiginificant <- which(SigRMtest_res_spliced_pva
 ```
 
 #### Finding sites where methylation levels are high in pre-mRNA but low in spliced mRNA, as well as sites where methylation levels are high in spliced mRNA but low in pre-mRNA.
-```{r}
+```{r warning=FALSE}
 res_preprocess <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/res_preprocess.rds")
 spliced_methylation_OR_value_meta <- res_preprocess$spliced_methylation_OR_value_meta
 unspliced_methylation_OR_value_meta <- res_preprocess$unspliced_methylation_OR_value_meta
@@ -1885,25 +1978,44 @@ unspliced_methylation_OR_value_meta <- res_preprocess$unspliced_methylation_OR_v
 index_pre_high_spliced_low <- which(unspliced_methylation_OR_value_meta-spliced_methylation_OR_value_meta>=1)
 index_spliced_high_pre_low <- which(spliced_methylation_OR_value_meta-unspliced_methylation_OR_value_meta>=1)
 ```
-
 #### metaTX plot 
-```{r}
-library(MetaTX)
-intersect_pre_dominate <- intersect(intersect(index_pre_high_spliced_low,index_pre_siginificant_spliced_insiginificant),index_differentially_meth)
+```{r warning=FALSE}
+intersect_pre_dominate <- intersect(index_pre_high_spliced_low,which(SigRMtest_res_unspliced_pvalue_median<=0.05))
 
-intersect_spliced_dominate <- intersect(intersect(index_spliced_high_pre_low,index_spliced_siginificant_pre_insiginificant),index_differentially_meth)
+intersect_spliced_dominate <- intersect(index_spliced_high_pre_low,which(SigRMtest_res_spliced_pvalue_median<=0.05))
 
-index_not_dominate <- setdiff(1:31799,union(intersect_pre_dominate,intersect_spliced_dominate)) 
+intersect_pre_dominate <-intersect_pre_dominate[order(SigRMtest_res_unspliced_pvalue_median[intersect_pre_dominate])[1:500]] 
+
+intersect_spliced_dominate <-intersect_spliced_dominate[order(SigRMtest_res_spliced_pvalue_median[intersect_spliced_dominate])[1:500]] 
+
+# SigRMtest_res_overall <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SigRMtest_res_overall.rds")
+# SigRMtest_res_overall_pvalue_median <- apply(SigRMtest_res_overall$`p value`,1,function(x) median(x,na.rm = TRUE))
+SigRMtest_res_overall_pvalue_median <-readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SigRMtest_res_overall_pvalue_median.rds")
+index_not_dominate <- order(SigRMtest_res_overall_pvalue_median)[1:500]
 
 # metaTX
 
 
 SNP_37199 <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SNP_37199.rds")
+SNP_all <- readRDS("D:/data/VeloRM_data/scDART-seq/origin/SNP_all.rds")
+index_error <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/index_error.rds")
+SNP_450974 <-SNP_all[index_error]
 txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
 
 SNP_intersect_pre_dominate <- SNP_37199[intersect_pre_dominate]
 SNP_intersect_spliced_dominate <- SNP_37199[intersect_spliced_dominate]
-SNP_intersect_not_dominate <- SNP_37199[index_not_dominate]
+SNP_intersect_not_dominate <- SNP_450974[index_not_dominate]
+SNP_background <- SNP_37199
+
+SNP_to_exclude <- c(SNP_intersect_pre_dominate, SNP_intersect_spliced_dominate)
+
+library(GenomicRanges)
+hits <- findOverlaps(SNP_intersect_not_dominate, SNP_to_exclude)
+
+if(length(hits)!=0){
+  SNP_intersect_not_dominate<- SNP_intersect_not_dominate[-queryHits(hits)]
+}
+
 
 # minus transcript strand +1, plus transcript strand -1
 SNP_intersect_pre_dominate_adjusted <- SNP_intersect_pre_dominate
@@ -1938,21 +2050,33 @@ SNP_intersect_not_dominate_adjusted[neg_strand]@ranges@start <-
    as.integer(SNP_intersect_not_dominate_adjusted[neg_strand]@ranges@start + 1)
 
 
+SNP_background_adjusted <- SNP_background
+pos_strand <- mcols(SNP_background)$transcript_strand == "+"
+neg_strand <- mcols(SNP_background)$transcript_strand == "-"
+
+SNP_background_adjusted[pos_strand]@ranges@start <- 
+   as.integer(SNP_background_adjusted[pos_strand]@ranges@start - 1)
+SNP_background_adjusted[neg_strand]@ranges@start <- 
+   as.integer(SNP_background_adjusted[neg_strand]@ranges@start + 1)
+
 remap_results_pre_dominate <- remapCoord(features = SNP_intersect_pre_dominate_adjusted, txdb = txdb)
 remap_results_spliced_dominate <- remapCoord(features = SNP_intersect_spliced_dominate_adjusted, txdb = txdb)
 remap_results_not_dominate <- remapCoord(features = SNP_intersect_not_dominate_adjusted, txdb = txdb)
+remap_results_background <- remapCoord(features = SNP_background_adjusted, txdb = txdb)
   
 # Step 2: Create plots for each subset
 plot_pre_dominate <- directPlot(remap_results_pre_dominate)
 plot_spliced_dominate <- directPlot(remap_results_spliced_dominate)
 plot_not_dominate <- directPlot(remap_results_not_dominate)
+plot_background <- directPlot(remap_results_background)
 
 data_a <- ggplot_build(plot_pre_dominate)$data[[1]] %>% mutate(Group = "Precursor")
 data_b <- ggplot_build(plot_spliced_dominate)$data[[1]] %>% mutate(Group = "Mature")
 data_c <- ggplot_build(plot_not_dominate)$data[[1]] %>% mutate(Group = "Other")
+data_d <- ggplot_build(plot_background)$data[[1]] %>% mutate(Group = "real")
 
 # Combine all datasets
-combined_data <- bind_rows(data_a, data_b, data_c)#, data_intersect)
+combined_data <- bind_rows(data_a, data_b, data_c,data_d)#, data_intersect)
 
 region_rects <- data.frame(
     xmin = c(0.2, 0.4, 0.6),  # Start positions of each region
@@ -1996,23 +2120,51 @@ compare_metaTX_plot <-ggplot(combined_data, aes(x = x, y = y, color = Group))+
     guides(fill = "none")+scale_color_manual(values = c(
   "Other" = "#00ba38",      
   "Mature" = "#619cff",     
-  "Precursor" = "#F8766d"         
-),name = "Higher on")+theme_minimal()+
+  "Precursor" = "#F8766d",
+  "real" = "#4D4D4D"
+),name = "Higher on")+theme_grey()+
   theme(
-    legend.position = c(0.8, 0.7)  )+xlab(NULL)+ylab(NULL)
+    legend.position = c(0.85, 0.7),
+    legend.background = element_blank()  )+xlab(NULL)+ylab(NULL)
 compare_metaTX_plot
-```
 
+```
 #### motif plot
-```{r}
+```{r warning=FALSE}
 library(GenomicRanges)
 library(Biostrings)
 library(BSgenome)
 library(BSgenome.Hsapiens.UCSC.hg38)
 genome <- BSgenome.Hsapiens.UCSC.hg38
 
-## pre 
+
+intersect_pre_dominate <- intersect(index_pre_high_spliced_low,which(SigRMtest_res_unspliced_pvalue_median<=0.05))
+
+intersect_spliced_dominate <- intersect(index_spliced_high_pre_low,which(SigRMtest_res_spliced_pvalue_median<=0.05))
+
+
+index_not_dominate <- which(SigRMtest_res_overall_pvalue_median<=0.05)
+
+# metaTX
+
+txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
+
 SNP_intersect_pre_dominate <- SNP_37199[intersect_pre_dominate]
+SNP_intersect_spliced_dominate <- SNP_37199[intersect_spliced_dominate]
+SNP_intersect_not_dominate <- SNP_450974[index_not_dominate]
+
+SNP_to_exclude <- c(SNP_intersect_pre_dominate, SNP_intersect_spliced_dominate)
+
+library(GenomicRanges)
+hits <- findOverlaps(SNP_intersect_not_dominate, SNP_to_exclude)
+
+if(length(hits)!=0){
+  SNP_intersect_not_dominate<- SNP_intersect_not_dominate[-queryHits(hits)]
+}
+## pre 
+
+
+
 # transcript_strand  +
 SNP_intersect_pre_dominate_plus <-SNP_intersect_pre_dominate[which(SNP_intersect_pre_dominate$transcript_strand=="+")] 
 
@@ -2035,7 +2187,9 @@ sequence_intersect_pre_dominate_minus <- getSeq(genome, extended_range_intersect
 sequence_intersect_pre_dominate_minus <- (subseq(sequence_intersect_pre_dominate_minus, start = 5, end = 9))
 
 ## spliced
-SNP_intersect_spliced_dominate <- SNP_37199[intersect_spliced_dominate]
+
+
+
 # transcript_strand  +
 SNP_intersect_spliced_dominate_plus <-SNP_intersect_spliced_dominate[which(SNP_intersect_spliced_dominate$transcript_strand=="+")] 
 
@@ -2062,7 +2216,9 @@ sequence_intersect_spliced_dominate_minus <- (subseq(sequence_intersect_spliced_
 
 
 ## not 
-SNP_intersect_not_dominate <- SNP_37199[index_not_dominate]
+
+
+
 # transcript_strand  +
 SNP_intersect_not_dominate_plus <-SNP_intersect_not_dominate[which(SNP_intersect_not_dominate$transcript_strand=="+")] 
 
@@ -2167,38 +2323,107 @@ ggseqlogo(seq_list, method = 'prob', seq_type = "RNA") +
 
 
 
-
 #### find the index of site only detect methylated reads in spliced or pre mRNA
-```{r}
+```{r warning=FALSE}
 index_meth_only_detect_pre <-  which(res_preprocess[["vg.test"]] %in% res_preprocess[["index"]][["methylation only occurs at unspliced RNA"]])
 
 index_meth_only_detect_spliced <-  which(res_preprocess[["vg.test"]] %in%res_preprocess[["index"]][["methylation only occurs at spliced RNA"]])
+
+intersect_pre_dominate <- intersect(index_pre_high_spliced_low,which(SigRMtest_res_unspliced_pvalue_median<=0.05))
+
+intersect_spliced_dominate <- intersect(index_spliced_high_pre_low,which(SigRMtest_res_spliced_pvalue_median<=0.05))
+
 
 # only detect at spliced
 index_meth_only_detect_spliced_int <-  intersect(index_meth_only_detect_spliced,intersect_spliced_dominate)
 SNP_37199[index_meth_only_detect_spliced_int]
 
-# + transcript strand need minus 1; - transcript strand need plus 1
-#  chr1  19242390 EMC1 -
-#  chr7  23140899 KLHL7 +
-#  chr2  32678876 TTC27 +
+library(biomaRt)
+
+# Ensembl
+ensembl <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
+
+# ENST 
+transcript_ids <- SNP_37199[index_meth_only_detect_spliced_int]$transcript_overlapped
+
+# clean
+transcript_ids_clean <- gsub("\\..*", "", transcript_ids)
+
+# find
+transcript_info <- getBM(
+  attributes = c("ensembl_transcript_id", "ensembl_gene_id", "external_gene_name", 
+                 "chromosome_name", "start_position", "end_position", "strand"),
+  filters = "ensembl_transcript_id",
+  values = transcript_ids_clean,
+  mart = ensembl
+)
+
+idx <- match(transcript_ids_clean, transcript_info$ensembl_transcript_id)
+transcript_info_ordered <- transcript_info[idx, ]
+transcript_info_ordered <-transcript_info_ordered [,c(4,3,7)]
+transcript_info_ordered$position <- SNP_37199[index_meth_only_detect_spliced_int]@ranges@start
+transcript_info_ordered$position <- transcript_info_ordered$position-transcript_info_ordered$strand
+
+transcript_info_ordered$SigRM_matrue_RNA <- 
+SigRMtest_res_spliced_pvalue_median[index_meth_only_detect_spliced_int]
+
+transcript_info_ordered$SigRM_precursor_RNA <- 
+SigRMtest_res_unspliced_pvalue_median[index_meth_only_detect_spliced_int]
+
+transcript_info_ordered$meta_OR <- 
+spliced_methylation_OR_value_meta[index_meth_only_detect_spliced_int]-unspliced_methylation_OR_value_meta[index_meth_only_detect_spliced_int]
+
+transcript_info_ordered_spliced <-transcript_info_ordered
+
 
 
 # only detect at pre
 index_meth_only_detect_pre_int <- intersect(index_meth_only_detect_pre,intersect_pre_dominate)
 SNP_37199[index_meth_only_detect_pre_int]
 
-#  chr3 119523752 TIMMDC1  +
-#  chr2 208248516  IDH1  -
-#  chr17  62448721  METTL2A  +
-#  chr1  28407422  PHACTR4  +
-#  chr15  41365455  NUSAP1  +
-#  chr16  67616757  CTCF  +
+
+library(biomaRt)
+
+# Ensembl
+ensembl <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
+
+# ENST 
+transcript_ids <- SNP_37199[index_meth_only_detect_pre_int]$transcript_overlapped
+
+# clean
+transcript_ids_clean <- gsub("\\..*", "", transcript_ids)
+
+# find
+transcript_info <- getBM(
+  attributes = c("ensembl_transcript_id", "ensembl_gene_id", "external_gene_name", 
+                 "chromosome_name", "start_position", "end_position", "strand"),
+  filters = "ensembl_transcript_id",
+  values = transcript_ids_clean,
+  mart = ensembl
+)
+
+idx <- match(transcript_ids_clean, transcript_info$ensembl_transcript_id)
+transcript_info_ordered <- transcript_info[idx, ]
+transcript_info_ordered <-transcript_info_ordered [,c(4,3,7)]
+transcript_info_ordered$position <- SNP_37199[index_meth_only_detect_pre_int]@ranges@start
+transcript_info_ordered$position <- transcript_info_ordered$position-transcript_info_ordered$strand
+
+transcript_info_ordered$SigRM_matrue_RNA <- 
+SigRMtest_res_spliced_pvalue_median[index_meth_only_detect_pre_int]
+
+transcript_info_ordered$SigRM_precursor_RNA <- 
+SigRMtest_res_unspliced_pvalue_median[index_meth_only_detect_pre_int]
+
+transcript_info_ordered$meta_OR <- 
+unspliced_methylation_OR_value_meta[index_meth_only_detect_pre_int]-spliced_methylation_OR_value_meta[index_meth_only_detect_pre_int]
+
+transcript_info_ordered_pre <-transcript_info_ordered
+
 ```
 
 ### cell cycle trajectory using m6A velocity
 #### find the 9 marker gens sites in 37199
-```{r eval=FALSE, include=FALSE}
+```{r eval=FALSE}
 
 
 library(ggplot2)
@@ -2304,12 +2529,14 @@ index_site <- site_index_correct
 index_site_SNP <- SNP_37199[index_site]
 site_length <- unlist(site_length_correct)
 names(site_length) <- c(g1_s_genes,s_genes,g2_m_genes )
-saveRDS(index_site,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/index_site.rds")
-saveRDS(index_site_SNP,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/index_site_SNP.rds")
-saveRDS(site_length,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/site_length.rds")
+# saveRDS(index_site,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/index_site.rds")
+# saveRDS(index_site_SNP,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/index_site_SNP.rds")
+# saveRDS(site_length,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/site_length.rds")
 ```
+
+
 #### run the m6A velocity and expression velocity
-```{r eval=FALSE, include=FALSE}
+```{r eval=FALSE}
 
 res_preprocess <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/pre_process/res_preprocess.rds")
 # the input data
@@ -2334,7 +2561,7 @@ res <- methylation.site.relative.velocity.estimates(res_preprocess$test, res_pre
                                                     fit.quantile = 0.05, n.cores = 1, emat.size = emat_size, 
                                                     nmat.size = nmat_size)
 
-saveRDS(res, "/gpfs/work/bio/haozhewang17/data/VeloRM_data/results/res_m6A_velocity.rds")
+# saveRDS(res, "/gpfs/work/bio/haozhewang17/data/VeloRM_data/results/res_m6A_velocity.rds")
 
 
 ## run the velocity
@@ -2363,7 +2590,7 @@ res <- site.relative.velocity.estimates(emat = spliced.meth.test+spliced.unmeth.
                                                     fit.quantile = 0.05, n.cores = 1, emat.size = emat_size, 
                                                     nmat.size = nmat_size)
 
-saveRDS(res, "/gpfs/work/bio/haozhewang17/data/VeloRM_data/results/res_expression_velocity.rds")
+# saveRDS(res, "/gpfs/work/bio/haozhewang17/data/VeloRM_data/results/res_expression_velocity.rds")
 
 ```
 
@@ -2371,7 +2598,7 @@ saveRDS(res, "/gpfs/work/bio/haozhewang17/data/VeloRM_data/results/res_expressio
 
 #### OR embedding
 filter the sites
-```{r eval=FALSE, include=FALSE}
+```{r eval=FALSE}
 library(ggplot2)
 
 res <- readRDS("D:/data/VeloRM_data/scDART-seq/results/res_m6A_velocity.rds")
@@ -2403,7 +2630,7 @@ index_site_name_int_intersect <-index_site_name_int[which(spliced_methylation_OR
 
 index_site_name_int_intersect_gene_info <- rep(names(site_length),site_length)[which(index_site_name%in%index_site_name_int_intersect)]
 
-saveRDS(index_site_name_int_intersect,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/index_site_name_int_intersect.rds")
+# saveRDS(index_site_name_int_intersect,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/index_site_name_int_intersect.rds")
 ```
 
 ##### OR embedding tsne
@@ -2534,7 +2761,7 @@ vis_umap_OR_emb_OR_log_index_grid[[1]]
 #### diffusion
 
 ##### tsne
-```{r eval=FALSE, include=FALSE}
+```{r eval=FALSE}
 library(VeloRM)
 # read the velocity results
 res <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_1_site_1_delta_0.01/res.rds")
@@ -2560,16 +2787,16 @@ label_phase[names(label_SigRM)] <- label_SigRM
 index <- which(label_phase=="G1"|label_phase=="G2/M"|label_phase=="S")
 
 diffusion_density_plot_tsne <- diffusion_density_plot(emb_tsne_OR_intersect[index,],vis_tsne_OR_emb_OR_log_index$tp,forward = TRUE,2500,scale="log")
-saveRDS(diffusion_density_plot_tsne,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_tsne.rds")
+# saveRDS(diffusion_density_plot_tsne,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_tsne.rds")
 ```
 ###### visulization
-```{r}
+```{r warning=FALSE}
 diffusion_density_plot_tsne <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_tsne.rds")
 diffusion_density_plot_tsne
 ```
 
 ##### umap
-```{r eval=FALSE, include=FALSE}
+```{r eval=FALSE}
 library(VeloRM)
 # read the velocity results
 res <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_1_site_1_delta_0.01/res.rds")
@@ -2595,43 +2822,43 @@ label_phase[names(label_SigRM)] <- label_SigRM
 index <- which(label_phase=="G1"|label_phase=="G2/M"|label_phase=="S")
 
 diffusion_density_plot_umap <- diffusion_density_plot(emb_umap_OR_intersect[index,],vis_umap_OR_emb_OR_log_index$tp,forward = TRUE,2500,scale="log")
-saveRDS(diffusion_density_plot_umap,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_umap.rds")
+# saveRDS(diffusion_density_plot_umap,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_umap.rds")
 ```
 ###### visulization
-```{r}
+```{r warning=FALSE}
 diffusion_density_plot_umap <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_umap.rds")
 diffusion_density_plot_umap
 ```
-#### site analysis
+#### site analysis 1
+chr5: 69174992 CCNB1 +
 ```{r,warning=FALSE}
 median_OR <- apply(res[[3]][["current"]][["OR"]][index_site_name_int_intersect,index],1,median)
 
 ind <- which.max(median_OR)
 
-data=tsne_data[index,1:2]
-data$OR = res[[3]][["current"]][["OR"]][index_site_name_int_intersect[ind],index]
-
+data_tsne=tsne_data[index,1:2]
+data_tsne$OR = res[[3]][["current"]][["OR"]][index_site_name_int_intersect[ind],index]
 plot_tsne_site120 <- ggplot() +
-  geom_point(data = data, aes(x = x, y = y, color = OR), size = 3, alpha = 0.8) +
+  geom_point(data = data_tsne, aes(x = x, y = y, color = OR), size = 3, alpha = 0.8) +
   scale_color_gradientn(
     colors = c("grey90", "grey", "#5AB4AC", "#01665E", "#003C30"),
     values = scales::rescale(c(0, 0.3, 0.6, 0.8, 1)),
-    limits = c(min(data$OR), max(data$OR)),
+    limits = c(min(data_tsne$OR), max(data_tsne$OR)),
     name = "Odds Ratio",
     guide = guide_colorbar(barwidth = 1, barheight = 15)
   ) +
   labs(title = NULL)+xlab("PC1")+ylab("PC2")
 
-data=umap_data[index,1:2]
-data$OR = res[[3]][["current"]][["OR"]][index_site_name_int_intersect[ind],index]
+data_umap=umap_data[index,1:2]
+data_umap$OR = res[[3]][["current"]][["OR"]][index_site_name_int_intersect[ind],index]
 plot_tsne_site120
 
 plot_umap_site120 <- ggplot() +
-  geom_point(data = data, aes(x = x, y = y, color = OR), size = 3, alpha = 0.8) +
+  geom_point(data = data_umap, aes(x = x, y = y, color = OR), size = 3, alpha = 0.8) +
   scale_color_gradientn(
     colors = c("grey90", "grey", "#5AB4AC", "#01665E", "#003C30"),
     values = scales::rescale(c(0, 0.3, 0.6, 0.8, 1)),
-    limits = c(min(data$OR), max(data$OR)),
+    limits = c(min(data_umap$OR), max(data_umap$OR)),
     name = "Odds Ratio",
     guide = guide_colorbar(barwidth = 1, barheight = 15)
   ) +
@@ -2731,10 +2958,273 @@ plot_site120_OR
 
 
 ```
-#### transcriptional impact analysis 
 
-##### run the transcriptional_impact_analysis
-```{r eval=FALSE, include=FALSE}
+#### site analysis 2
+chr20: 5115239 PCNA -
+```{r,warning=FALSE}
+
+ind <- 24
+
+data=tsne_data[index,1:2]
+data$OR = res[[3]][["current"]][["OR"]][index_site_name_int_intersect[ind],index]
+
+plot_tsne_site24 <- ggplot() +
+  geom_point(data = data, aes(x = x, y = y, color = OR), size = 3, alpha = 0.8) +
+  scale_color_gradientn(
+    colors = c("grey90", "grey", "#5AB4AC", "#01665E", "#003C30"),
+    values = scales::rescale(c(0, 0.3, 0.6, 0.8, 1)),
+    limits = c(min(data$OR), max(data$OR)),
+    name = "Odds Ratio",
+    guide = guide_colorbar(barwidth = 1, barheight = 15)
+  ) +
+  labs(title = NULL)+xlab("PC1")+ylab("PC2")
+
+data=umap_data[index,1:2]
+data$OR = res[[3]][["current"]][["OR"]][index_site_name_int_intersect[ind],index]
+plot_tsne_site24
+
+plot_umap_site24 <- ggplot() +
+  geom_point(data = data, aes(x = x, y = y, color = OR), size = 3, alpha = 0.8) +
+  scale_color_gradientn(
+    colors = c("grey90", "grey", "#5AB4AC", "#01665E", "#003C30"),
+    values = scales::rescale(c(0, 0.3, 0.6, 0.8, 1)),
+    limits = c(min(data$OR), max(data$OR)),
+    name = "Odds Ratio",
+    guide = guide_colorbar(barwidth = 1, barheight = 15)
+  ) +
+  labs(title = NULL)+xlab("PC1")+ylab("PC2")
+plot_umap_site24
+
+
+data <- as.data.frame(cbind(res[[1]][["conv.emat.norm"]][index_site_name_int_intersect[ind],index],
+              res[[1]][["conv.nmat.norm"]][index_site_name_int_intersect[ind],index],
+              tsne_data [index,3]))
+colnames(data) <- c("x","y","color")
+data$x <- as.numeric(data$x)
+data$y <- as.numeric(data$y)
+
+slope <- res[[1]][["gamma"]][index_site_name_int_intersect[ind]]
+intercept <- res[[1]][["ko"]][index_site_name_int_intersect[ind],1]
+
+plot_site24_meth <- ggplot()+geom_point(data=data,aes(x=x,y=y),size=2,color="#2E5DAA") +
+  geom_abline(slope = slope, intercept = intercept, color = "black", size = 1,linetype = "dashed")+
+  coord_cartesian(xlim = c(0,0.02),ylim = c(0,0.06))+ylab("methylated unspliced")+xlab("methylated spliced")
+plot_site24_meth
+
+
+data <- as.data.frame(cbind(res[[2]][["conv.emat.norm"]][index_site_name_int_intersect[ind],index],
+              res[[2]][["conv.nmat.norm"]][index_site_name_int_intersect[ind],index],
+              tsne_data [index,3]))
+colnames(data) <- c("x","y","color")
+data$x <- as.numeric(data$x)
+data$y <- as.numeric(data$y)
+slope <- res[[2]][["gamma"]][index_site_name_int_intersect[ind]]
+intercept <- res[[2]][["ko"]][index_site_name_int_intersect[ind],1]
+
+plot_site24_unmeth <- ggplot()+geom_point(data=data,aes(x=x,y=y),size=2,color="#2E5DAA") +
+  geom_abline(slope = slope, intercept = intercept, color = "black", size = 1,linetype = "dashed")+ylab("unmethylated unspliced")+xlab("unmethylated spliced")
+plot_site24_unmeth
+
+
+unspliced_M_current <- log2(((res[[1]][["conv.nmat.norm"]][index_site_name_int_intersect[ind],index]+1e-7)/
+  (res[[2]][["conv.nmat.norm"]][index_site_name_int_intersect[ind],index]+1e-7))/res[[4]][["control_information_Beta"]][index_site_name_int_intersect[ind]])
+
+spliced_M_current <- log2(((res[[1]][["conv.emat.norm"]][index_site_name_int_intersect[ind],index]+1e-7)/
+                           (res[[2]][["conv.emat.norm"]][index_site_name_int_intersect[ind],index]+1e-7))/res[[4]][["control_information_Beta"]][index_site_name_int_intersect[ind]])
+
+data <- as.data.frame(cbind(spliced_M_current,
+                            unspliced_M_current,
+                            tsne_data [index,3]))
+colnames(data) <- c("x","y","color")
+data$x <- as.numeric(data$x)
+data$y <- as.numeric(data$y)
+
+threshold <- 0
+
+data_steady <- data[which(data$x*data$y>threshold^2),]
+lm_res <- lm(y~x,data_steady)
+lm_res$coefficients
+slope <- lm_res$coefficients[2]
+intercept <- lm_res$coefficients[1]
+
+data_steady_left <- data[which(data$x<threshold&data$y<threshold),]
+data_steady_right <- data[which(data$x>threshold&data$y>threshold),]
+
+data_left <- data[which(data$x<threshold&data$y>threshold),]
+data_right <- data[which(data$x>threshold&data$y<threshold),]
+
+
+residuals_value_left <- predict(lm_res,data_left)-data_left$y
+residuals_value_right <- predict(lm_res,data_right)-data_right$y
+
+library(ggforce)
+plot_site24_OR <- ggplot()+geom_point(data=data,aes(x=x,y=y),size=2,color="#2E5DAA") +
+  geom_abline(slope = slope, intercept = intercept, color = "#555555", size = 1,linetype = "dashed")+
+  geom_line(
+    stat = "smooth",
+    data = data_left,
+    aes(x = x, y = y),
+    method = "lm",
+    formula = y ~ poly(x, 2),
+    color = "#555555",
+    size = 1,
+    arrow = arrow(type = "closed", length = unit(0.15, "inches"))
+  )+geom_line(
+    stat = "smooth",
+    data = data_right,
+    aes(x = x, y = y),
+    method = "lm",
+    formula = y ~ poly(x, 2),
+    color = "#555555",
+    size = 1,
+    arrow = arrow(type = "closed", length = unit(0.15, "inches"), ends = "first")
+  )+stat_ellipse(data = data_steady_left, level = 0.99, linetype = 1, size = 2, 
+    fill = "#2C7BB6",
+                 aes(x = x, y = y), alpha = 0.3, segments = 50, geom = "polygon",type = "t") +stat_ellipse(data = data_steady_right, level = 0.9, linetype = 1, size = 2, 
+               fill = "#2C7BB6",  aes(x = x, y = y), alpha = 0.3, segments = 50, geom = "polygon",type = "t") +ylab("unspliced OR")+xlab("spliced OR")
+plot_site24_OR
+
+
+
+
+```
+
+
+#### site analysis 3
+chr5: 69174989 CCNB1 +
+```{r,warning=FALSE}
+
+ind <- 119
+
+data=tsne_data[index,1:2]
+data$OR = res[[3]][["current"]][["OR"]][index_site_name_int_intersect[ind],index]
+
+plot_tsne_site119 <- ggplot() +
+  geom_point(data = data, aes(x = x, y = y, color = OR), size = 3, alpha = 0.8) +
+  scale_color_gradientn(
+    colors = c("grey90", "grey", "#5AB4AC", "#01665E", "#003C30"),
+    values = scales::rescale(c(0, 0.3, 0.6, 0.8, 1)),
+    limits = c(min(data$OR), max(data$OR)),
+    name = "Odds Ratio",
+    guide = guide_colorbar(barwidth = 1, barheight = 15)
+  ) +
+  labs(title = NULL)+xlab("PC1")+ylab("PC2")
+
+data=umap_data[index,1:2]
+data$OR = res[[3]][["current"]][["OR"]][index_site_name_int_intersect[ind],index]
+plot_tsne_site119
+
+plot_umap_site119 <- ggplot() +
+  geom_point(data = data, aes(x = x, y = y, color = OR), size = 3, alpha = 0.8) +
+  scale_color_gradientn(
+    colors = c("grey90", "grey", "#5AB4AC", "#01665E", "#003C30"),
+    values = scales::rescale(c(0, 0.3, 0.6, 0.8, 1)),
+    limits = c(min(data$OR), max(data$OR)),
+    name = "Odds Ratio",
+    guide = guide_colorbar(barwidth = 1, barheight = 15)
+  ) +
+  labs(title = NULL)+xlab("PC1")+ylab("PC2")
+plot_umap_site119
+
+
+data <- as.data.frame(cbind(res[[1]][["conv.emat.norm"]][index_site_name_int_intersect[ind],index],
+              res[[1]][["conv.nmat.norm"]][index_site_name_int_intersect[ind],index],
+              tsne_data [index,3]))
+colnames(data) <- c("x","y","color")
+data$x <- as.numeric(data$x)
+data$y <- as.numeric(data$y)
+
+slope <- res[[1]][["gamma"]][index_site_name_int_intersect[ind]]
+intercept <- res[[1]][["ko"]][index_site_name_int_intersect[ind],1]
+
+plot_site119_meth <- ggplot()+geom_point(data=data,aes(x=x,y=y),size=2,color="#2E5DAA") +
+  geom_abline(slope = slope, intercept = intercept, color = "black", size = 1,linetype = "dashed")+
+  coord_cartesian(xlim = c(0,0.02),ylim = c(0,0.06))+ylab("methylated unspliced")+xlab("methylated spliced")
+plot_site119_meth
+
+
+data <- as.data.frame(cbind(res[[2]][["conv.emat.norm"]][index_site_name_int_intersect[ind],index],
+              res[[2]][["conv.nmat.norm"]][index_site_name_int_intersect[ind],index],
+              tsne_data [index,3]))
+colnames(data) <- c("x","y","color")
+data$x <- as.numeric(data$x)
+data$y <- as.numeric(data$y)
+slope <- res[[2]][["gamma"]][index_site_name_int_intersect[ind]]
+intercept <- res[[2]][["ko"]][index_site_name_int_intersect[ind],1]
+
+plot_site119_unmeth <- ggplot()+geom_point(data=data,aes(x=x,y=y),size=2,color="#2E5DAA") +
+  geom_abline(slope = slope, intercept = intercept, color = "black", size = 1,linetype = "dashed")+ylab("unmethylated unspliced")+xlab("unmethylated spliced")
+plot_site119_unmeth
+
+
+unspliced_M_current <- log2(((res[[1]][["conv.nmat.norm"]][index_site_name_int_intersect[ind],index]+1e-7)/
+  (res[[2]][["conv.nmat.norm"]][index_site_name_int_intersect[ind],index]+1e-7))/res[[4]][["control_information_Beta"]][index_site_name_int_intersect[ind]])
+
+spliced_M_current <- log2(((res[[1]][["conv.emat.norm"]][index_site_name_int_intersect[ind],index]+1e-7)/
+                           (res[[2]][["conv.emat.norm"]][index_site_name_int_intersect[ind],index]+1e-7))/res[[4]][["control_information_Beta"]][index_site_name_int_intersect[ind]])
+
+data <- as.data.frame(cbind(spliced_M_current,
+                            unspliced_M_current,
+                            tsne_data [index,3]))
+colnames(data) <- c("x","y","color")
+data$x <- as.numeric(data$x)
+data$y <- as.numeric(data$y)
+
+threshold <- 0
+
+data_steady <- data[which(data$x*data$y>threshold^2),]
+lm_res <- lm(y~x,data_steady)
+lm_res$coefficients
+slope <- lm_res$coefficients[2]
+intercept <- lm_res$coefficients[1]
+
+data_steady_left <- data[which(data$x>-8&data$x<threshold&data$y<threshold),]
+data_steady_right <- data[which(data$x>threshold&data$y>threshold),]
+
+data_left <- data[which(data$x<threshold&data$y>threshold),]
+data_right <- data[which(data$x>threshold&data$y<threshold),]
+
+
+residuals_value_left <- predict(lm_res,data_left)-data_left$y
+residuals_value_right <- predict(lm_res,data_right)-data_right$y
+
+library(ggforce)
+plot_site119_OR <- ggplot()+geom_point(data=data,aes(x=x,y=y),size=2,color="#2E5DAA") +
+  geom_abline(slope = slope, intercept = intercept, color = "#555555", size = 1,linetype = "dashed")+
+  geom_line(
+    stat = "smooth",
+    data = data_left,
+    aes(x = x, y = y),
+    method = "lm",
+    formula = y ~ poly(x, 2),
+    color = "#555555",
+    size = 1,
+    arrow = arrow(type = "closed", length = unit(0.15, "inches"))
+  )+geom_line(
+    stat = "smooth",
+    data = data_right,
+    aes(x = x, y = y),
+    method = "lm",
+    formula = y ~ poly(x, 2),
+    color = "#555555",
+    size = 1,
+    arrow = arrow(type = "closed", length = unit(0.15, "inches"), ends = "first")
+  )+stat_ellipse(data = data_steady_left, level = 0.999, linetype = 1, size = 2, 
+    fill = "#2C7BB6",
+                 aes(x = x, y = y), alpha = 0.3, segments = 50, geom = "polygon",type = "t") +stat_ellipse(data = data_steady_right, level = 0.8, linetype = 1, size = 2, 
+               fill = "#2C7BB6",  aes(x = x, y = y), alpha = 0.3, segments = 50, geom = "polygon",type = "t") +ylab("unspliced OR")+xlab("spliced OR")
+plot_site119_OR
+
+
+
+
+```
+
+
+
+
+### run the transcriptional_impact_analysis
+```{r eval=FALSE}
 library(VeloRM)
 res_preprocess <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/res_preprocess.rds")
 
@@ -2750,15 +3240,13 @@ res_transcriptional_impact_analysis <- transcriptional.impact.analysis(test.list
                                                                        methylation.site.relative.velocity.result = res_methylation,
                                                                        exp.site.velocity.result = res_expression,delta_exp = "delta_from_exp_velocity",delta_exp_TPM = FALSE,methylation_level = "meta_OR_sep",methylation_level_scale = "log2",cor_method="spearman")
 
-saveRDS(res_transcriptional_impact_analysis,"D:/data/VeloRM_data/scDART-seq/results/transcriptional_impact_analysis/res_transcriptional_impact_analysis.rds")
+# saveRDS(res_transcriptional_impact_analysis,"D:/data/VeloRM_data/scDART-seq/results/transcriptional_impact_analysis/res_transcriptional_impact_analysis.rds")
 
 ```
 
-##### analysis the res from transcriptional_impact_analysis
-###### comparision spliced unspliced corelation
-```{r}
-rm(list = ls())
-gc()
+### analysis the res from transcriptional_impact_analysis
+#### comparision spliced unspliced corelation
+```{r warning=FALSE}
 res_transcriptional_impact_analysis <- readRDS("D:/data/VeloRM_data/scDART-seq/results/transcriptional_impact_analysis/res_transcriptional_impact_analysis_spearman.rds")
 
 delta_exp_and_methylation_cor_spliced <- mapply(function(meth, exp) {
@@ -2788,27 +3276,63 @@ df <- data.frame(
       rep("Unspliced", length(delta_exp_and_methylation_cor_unspliced)),
       rep("Meta", length(delta_exp_and_methylation_cor_unspliced))
     ),
-    levels = c("Spliced", "Unspliced","Meta")
+    levels = c("Spliced","Meta", "Unspliced")
   )
 )
 
 p <- ggplot(df, aes(x = correlation, fill = group, color = group)) +
   geom_density(alpha = 0.4, linewidth = 0.8) +
-  theme_minimal() +
+  theme_grey() +
   theme(
-    legend.position = "top",
+    legend.position = c(0.8, 0.7) ,
+    legend.title = element_blank(),
+    legend.background = element_blank(),
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  )
+print(p)
+
+
+# Extract correlation data for the Meta group
+df_meta <- data.frame(
+  correlation = res_transcriptional_impact_analysis[["delta_exp_and_methylation_cor"]]
+)
+
+# Create density plot
+p_meta <- ggplot(df_meta, aes(x = correlation)) +
+  geom_density(
+    fill = "#F8766D",      # Fill color (consistent with previous Meta group)
+    color = "#F8766D",     # Line color
+    alpha = 0.4,           # Transparency
+    linewidth = 0.8        # Line thickness
+  ) +
+  labs(
+    title = NULL,
+    x = "Spearman Correlation",
+    y = "Density"
+  ) +
+  theme_grey() 
+
+print(p_meta)
+
+
+p <- ggplot(df, aes(x = group, y = correlation, fill = group, color = group)) +
+  geom_violin(alpha = 0.4, width = 0.8) +
+  geom_boxplot(width = 0.1, alpha = 0.7, outlier.shape = NA) +
+  theme_grey() +
+  theme(
+    legend.position = "none",
     legend.title = element_blank(),
     plot.title = element_text(hjust = 0.5, face = "bold")
-  )+
-  theme(
-    legend.position = c(0.8, 0.7)  )
+  ) + 
+  labs(x = NULL, y = "Correlation")
+
 print(p)
 ```
 
 
 
-##### analysis the methylation level and delta expression
-```{r}
+#### analysis the methylation level and delta expression
+```{r warning=FALSE}
 delta_exp_methylation_cor <- res_transcriptional_impact_analysis$delta_exp_and_methylation_cor
 
 
@@ -2857,8 +3381,8 @@ index_delta_exp_filter <- intersect(index_delta_exp_RMSE_significant,index_delta
 
 ```
 
-###### positive correlation
-```{r}
+##### positive correlation
+```{r warning=FALSE}
 index_delta_exp_p_filter <- intersect(index_delta_exp_filter,index_delta_exp_methylation_cor_p)
 
 # find the spliced dominant
@@ -2878,14 +3402,17 @@ num_delta_exp_pre_dominant_p <- length(index_delta_exp_pre_dominant_p)
 num_delta_exp_spliced_dominant_p
 num_delta_exp_pre_dominant_p
 ```
-####### spliced dominant 
-```{r}
+###### spliced dominant 
+visualize the  chr9 100340350 TEX10 - 
+```{r warning=FALSE}
 length(which(lm_results_index_delta_exp_methylation_cor_coefficients_pre[index_delta_exp_spliced_dominant_p]<0))
 
 length(which(lm_results_index_delta_exp_methylation_cor_coefficients_pre[index_delta_exp_spliced_dominant_p]>0))
 
 ind <- which.max(res_transcriptional_impact_analysis[["delta_exp_and_methylation_cor"]][index_delta_exp_spliced_dominant_p])
 
+SNP_37199 <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SNP_37199.rds")
+SNP_37199[index_delta_exp_spliced_dominant_p[ind]]
 # all the spliced dominant, pre mRNA is differential compare to spliced mRNA
 
 data_plot <- as.data.frame(cbind(as.numeric(res_transcriptional_impact_analysis[["other_information"]][["methylation_level_matrix"]][index_delta_exp_spliced_dominant_p[ind],]),
@@ -2894,12 +3421,20 @@ colnames(data_plot) <- c("x","y")
 
 
 cor(data_plot$x,data_plot$y,method = "spearman")
-plot_meta <- ggplot()+geom_point(data=data_plot,aes(x=x,y=y),
+plot_meta <- ggplot(data=data_plot,aes(x=x,y=y))+geom_point(
                                      size = 1,   
     alpha = 0.5,
-    color = "#2c7fb8")+coord_cartesian(xlim=c(-48,-36),ylim=c(-0.001,0.001))+
+    color = "#2c7fb8")+
+  # Smoother lines with more distinct appearance
+  geom_smooth(
+              color = "black", 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid") +
+  scale_x_continuous(limits = c(-48,-36))+
+  scale_y_continuous(limits = c(-0.001, 0.001)) +
   ylab("delta exp")+xlab("meta OR")+
-                theme_minimal()
+                theme_grey()
 plot_meta
 
 data_plot <- as.data.frame(cbind(as.numeric(res_transcriptional_impact_analysis[["other_information"]][["methylation_level_matrix_spliced"]][index_delta_exp_spliced_dominant_p[ind],]),
@@ -2908,12 +3443,20 @@ colnames(data_plot) <- c("x","y")
 
 
 cor(data_plot$x,data_plot$y,method = "spearman")
-plot_spliced <- ggplot()+geom_point(data=data_plot,aes(x=x,y=y),
+plot_spliced <- ggplot(data=data_plot,aes(x=x,y=y))+geom_point(
                                      size = 1,   
     alpha = 0.5,
-    color = "#2c7fb8")+coord_cartesian(xlim=c(-26,-17),ylim=c(-0.001,0.001))+
+    color = "#2c7fb8")+
+  # Smoother lines with more distinct appearance
+  geom_smooth(data=data_plot,
+              color = "black", 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid") +
+  scale_x_continuous(limits = c(-26, -17))+
+  scale_y_continuous(limits = c(-0.001, 0.001)) +
   ylab("delta exp")+xlab("spliced OR")+
-                theme_minimal()
+                theme_grey()
 plot_spliced
 
 
@@ -2925,12 +3468,19 @@ colnames(data_plot) <- c("x","y")
 
 
 cor(data_plot$x,data_plot$y,method = "spearman")
-plot_unspliced <-ggplot()+geom_point(data=data_plot,aes(x=x,y=y),
-                                     size = 1,   
+plot_unspliced <-ggplot(data=data_plot,aes(x=x,y=y))+geom_point(                 size = 1,   
     alpha = 0.5,
-    color = "#2c7fb8")+coord_cartesian(xlim=c(-23,-17),ylim=c(-0.001,0.001))+
+    color = "#2c7fb8")+
+  # Smoother lines with more distinct appearance
+  geom_smooth(data=data_plot,
+              color = "black", 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid") +
+  scale_x_continuous(limits = c(-26, -17))+
+  scale_y_continuous(limits = c(-0.001, 0.001)) +
   ylab("delta exp")+xlab("unspliced OR")+
-                theme_minimal()
+                theme_grey()
 plot_unspliced
 
 
@@ -2961,22 +3511,39 @@ combined_data <- rbind(data_spliced, data_unspliced)
 cor_spliced <- cor(data_spliced$x, data_spliced$y, method = "spearman")
 cor_unspliced <- cor(data_unspliced$x, data_unspliced$y, method = "spearman")
 
-# Create combined plot
-combined_plot <- ggplot(combined_data, aes(x = x, y = y, color = group)) +
-    geom_point(size = 1, alpha = 0.5) +
-    coord_cartesian(xlim = c(-26, -17),ylim = c(-0.001,0.001)) +
-    ylab("delta exp") +
-    xlab("OR methylation level") +
-    labs(color = "Group")  +
-                theme_minimal()+
-  theme(
-    legend.position = c(0.8, 0.8)  )
-            
+
+
+combined_plot <- ggplot(combined_data, aes(x = x, y = y)) +
+  # Points with original group colors
+  geom_point(aes(color = group), size = 1, alpha = 0.5) +
+  # Lines with modified group names (appending "_line")
+  geom_smooth(aes(group = group, color = paste0(group, "_line")), 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid") +
+  scale_x_continuous(limits = c(-26, -17))+
+  scale_y_continuous(limits = c(-0.001, 0.001)) +
+  ylab("delta exp") +
+  xlab("OR") +
+  labs(color = "Group") +
+  theme_grey() +
+  theme(legend.position = "none")+
+  # Automatic color assignment
+  scale_color_manual(
+    values = c(
+      setNames(scales::hue_pal()(length(unique(combined_data$group))), 
+               unique(combined_data$group)),
+      setNames(scales::hue_pal(l = 40)(length(unique(combined_data$group))), 
+               paste0(unique(combined_data$group), "_line"))
+    ),
+    breaks = unique(combined_data$group)  # Show only original groups in legend
+  )
 combined_plot
 
 ```
-####### pre dominant 
-```{r}
+###### pre dominant 
+visualize the  chr10 119836922 MCMBP - 
+```{r warning=FALSE}
 length(which(lm_results_index_delta_exp_methylation_cor_coefficients_spliced[index_delta_exp_pre_dominant_p]<0))
 
 length(which(lm_results_index_delta_exp_methylation_cor_coefficients_spliced[index_delta_exp_pre_dominant_p]>0))
@@ -2984,18 +3551,28 @@ length(which(lm_results_index_delta_exp_methylation_cor_coefficients_spliced[ind
 # all the pre dominant, spliced mRNA is differential compare to spliced mRNA
 ind <- which.max(res_transcriptional_impact_analysis[["delta_exp_and_methylation_cor"]][index_delta_exp_pre_dominant_p])
 
+SNP_37199[index_delta_exp_pre_dominant_p[ind]] 
+
 data_plot <- as.data.frame(cbind(as.numeric(res_transcriptional_impact_analysis[["other_information"]][["methylation_level_matrix"]][index_delta_exp_pre_dominant_p[ind],]),
                   as.numeric(res_transcriptional_impact_analysis[["other_information"]][["delta_exp_matrix"]][index_delta_exp_pre_dominant_p[ind],])))
 colnames(data_plot) <- c("x","y")
 
 
 cor(data_plot$x,data_plot$y,method = "spearman")
-plot_meta <-ggplot()+geom_point(data=data_plot,aes(x=x,y=y),
+plot_meta <-ggplot(data=data_plot,aes(x=x,y=y))+geom_point(
                                      size = 1,   
     alpha = 0.5,
-    color = "#2c7fb8")+coord_cartesian(xlim=c(23.5,35))+
+    color = "#2c7fb8")+
+  # Smoother lines with more distinct appearance
+  geom_smooth(
+              color = "black", 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid",
+              method = "lm",formula=y~I(poly(x,2))) +
+  scale_x_continuous(limits = c(23.5,35))+
   ylab("delta exp")+xlab("meta OR")+
-                theme_minimal()
+                theme_grey()
 plot_meta
 
 
@@ -3005,12 +3582,20 @@ colnames(data_plot) <- c("x","y")
 
 
 cor(data_plot$x,data_plot$y,method = "spearman")
-plot_spliced <-ggplot()+geom_point(data=data_plot,aes(x=x,y=y),
+plot_spliced <-ggplot(data=data_plot,aes(x=x,y=y))+geom_point(
                                      size = 1,   
     alpha = 0.5,
-    color = "#2c7fb8")+coord_cartesian(xlim=c(11,18))+
+    color = "#2c7fb8")+
+  # Smoother lines with more distinct appearance
+  geom_smooth(
+              color = "black", 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid",
+              method = "lm",formula=y~I(poly(x,2))) +
+  scale_x_continuous(limits = c(11,18))+
   ylab("delta exp")+xlab("spliced OR")+
-                theme_minimal()
+                theme_grey()
 
 plot_spliced
 
@@ -3020,12 +3605,19 @@ colnames(data_plot) <- c("x","y")
 
 
 cor(data_plot$x,data_plot$y,method = "spearman")
-plot_unspliced <-ggplot()+geom_point(data=data_plot,aes(x=x,y=y),
-                                     size = 1,   
+plot_unspliced <-ggplot(data=data_plot,aes(x=x,y=y))+geom_point(size = 1,   
     alpha = 0.5,
-    color = "#2c7fb8")+coord_cartesian(xlim=c(11,18))+
+    color = "#2c7fb8")+
+  # Smoother lines with more distinct appearance
+  geom_smooth(
+              color = "black", 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid",
+              method = "lm",formula=y~I(poly(x,2))) +
+  scale_x_continuous(limits = c(11,18))+
   ylab("delta exp")+xlab("unspliced OR")+
-                theme_minimal()
+                theme_grey()
 plot_unspliced
 
 
@@ -3053,19 +3645,34 @@ cor_spliced <- cor(data_spliced$x, data_spliced$y, method = "spearman")
 cor_unspliced <- cor(data_unspliced$x, data_unspliced$y, method = "spearman")
 
 # Create combined plot
-combined_plot <- ggplot(combined_data, aes(x = x, y = y, color = group)) +
-    geom_point(size = 1, alpha = 0.5) +
-    coord_cartesian(xlim = c(11,18)) +
-    ylab("delta exp") +
-    xlab("OR methylation level") +
-    labs(color = "Group")  +
-                theme_minimal()
-            
+combined_plot <- ggplot(combined_data, aes(x = x, y = y)) +
+  # Points with original group colors
+  geom_point(aes(color = group), size = 1, alpha = 0.5) +
+  # Lines with modified group names (appending "_line")
+  geom_smooth(aes(group = group, color = paste0(group, "_line")), 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid",
+              method = "lm",formula=y~I(poly(x,2))) +
+  scale_x_continuous(limits = c(11,18)) +
+  ylab("delta exp") +
+  xlab("OR") +
+  labs(color = "Group") +
+  theme_grey() +
+  # Automatic color assignment
+  scale_color_manual(
+    values = c(
+      setNames(scales::hue_pal()(length(unique(combined_data$group))), 
+               unique(combined_data$group)),
+      setNames(scales::hue_pal(l = 40)(length(unique(combined_data$group))), 
+               paste0(unique(combined_data$group), "_line"))
+    ),
+    breaks = unique(combined_data$group)  # Show only original groups in legend
+  )
 combined_plot
-
 ```
-###### negative correlation
-```{r}
+##### negative correlation
+```{r warning=FALSE}
 index_delta_exp_n_filter <- intersect(index_delta_exp_filter,index_delta_exp_methylation_cor_n)
 
 # find the spliced dominant
@@ -3081,8 +3688,9 @@ num_delta_exp_pre_dominant_n <- length(index_delta_exp_pre_dominant_n)
 num_delta_exp_spliced_dominant_n
 num_delta_exp_pre_dominant_n
 ```
-####### spliced dominant 
-```{r}
+###### spliced dominant 
+visualize the  chr6 143857304 LTV1 +
+```{r warning=FALSE}
 length(which(lm_results_index_delta_exp_methylation_cor_coefficients_pre[index_delta_exp_spliced_dominant_n]<0))
 
 length(which(lm_results_index_delta_exp_methylation_cor_coefficients_pre[index_delta_exp_spliced_dominant_n]>0))
@@ -3092,17 +3700,29 @@ length(which(lm_results_index_delta_exp_methylation_cor_coefficients_pre[index_d
 
 ind <- 2
 
+SNP_37199[index_delta_exp_spliced_dominant_n[ind]] 
+
 data_plot <- as.data.frame(cbind(as.numeric(res_transcriptional_impact_analysis[["other_information"]][["methylation_level_matrix"]][index_delta_exp_spliced_dominant_n[ind],]),
                   as.numeric(res_transcriptional_impact_analysis[["other_information"]][["delta_exp_matrix"]][index_delta_exp_spliced_dominant_n[ind],])))
 colnames(data_plot) <- c("x","y")
 
 
 cor(data_plot$x,data_plot$y,method = "spearman")
-plot_meta <-ggplot()+geom_point(data=data_plot,aes(x=x,y=y),
+plot_meta <-ggplot(data=data_plot,aes(x=x,y=y))+geom_point(
                                      size = 1,   
     alpha = 0.5,
-    color = "#2c7fb8")+coord_cartesian(xlim=c(-48,-35))+
-                theme_minimal()
+    color = "#2c7fb8")+
+  # Smoother lines with more distinct appearance
+  geom_smooth(
+              color = "black", 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid",
+              method = "lm",formula=y~I(poly(x,2))) +
+  scale_x_continuous(limits = c(-48,-35))+
+                theme_grey()+
+  ylab("delta exp") +
+  xlab("meta OR")
 plot_meta 
 
 
@@ -3113,11 +3733,17 @@ colnames(data_plot) <- c("x","y")
 
 
 cor(data_plot$x,data_plot$y,method = "spearman")
-plot_spliced <-ggplot()+geom_point(data=data_plot,aes(x=x,y=y),
-                                     size = 1,   
+plot_spliced <-ggplot(data=data_plot,aes(x=x,y=y))+geom_point(    size = 1,   
     alpha = 0.5,
-    color = "#2c7fb8")+coord_cartesian(xlim=c(-24,-16))+
-                theme_minimal()
+    color = "#2c7fb8")+
+  # Smoother lines with more distinct appearance
+  geom_smooth(
+              color = "black", 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid") +
+  scale_x_continuous(limits = c(-24,-16))+
+                theme_grey()
 plot_spliced
 
 
@@ -3128,11 +3754,17 @@ colnames(data_plot) <- c("x","y")
 
 
 cor(data_plot$x,data_plot$y,method = "spearman")
-plot_unspliced <-ggplot()+geom_point(data=data_plot,aes(x=x,y=y),
-                                     size = 1,   
+plot_unspliced <-ggplot(data=data_plot,aes(x=x,y=y))+geom_point(dsize = 1,   
     alpha = 0.5,
-    color = "#2c7fb8")+coord_cartesian(xlim=c(-26,-15))+
-                theme_minimal()
+    color = "#2c7fb8")+
+  # Smoother lines with more distinct appearance
+  geom_smooth(
+              color = "black", 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid") +
+  scale_x_continuous(limits = c(-26,-15))+
+                theme_grey()
 plot_unspliced
 
 
@@ -3159,18 +3791,35 @@ cor_spliced <- cor(data_spliced$x, data_spliced$y, method = "spearman")
 cor_unspliced <- cor(data_unspliced$x, data_unspliced$y, method = "spearman")
 
 # Create combined plot
-combined_plot <- ggplot(combined_data, aes(x = x, y = y, color = group)) +
-    geom_point(size = 1, alpha = 0.5) +
-    coord_cartesian(xlim = c(-26,-15)) +
-    ylab("delta exp") +
-    xlab("OR methylation level") +
-    labs(color = "Group")  +
-                theme_minimal()
-            
+
+combined_plot <- ggplot(combined_data, aes(x = x, y = y)) +
+  # Points with original group colors
+  geom_point(aes(color = group), size = 1, alpha = 0.5) +
+  # Lines with modified group names (appending "_line")
+  geom_smooth(aes(group = group, color = paste0(group, "_line")), 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid") +
+  scale_x_continuous(limits = c(-26, -15))+
+  ylab("delta exp") +
+  xlab("OR") +
+  labs(color = "Group") +
+  theme_grey() +
+  # Automatic color assignment
+  scale_color_manual(
+    values = c(
+      setNames(scales::hue_pal()(length(unique(combined_data$group))), 
+               unique(combined_data$group)),
+      setNames(scales::hue_pal(l = 40)(length(unique(combined_data$group))), 
+               paste0(unique(combined_data$group), "_line"))
+    ),
+    breaks = unique(combined_data$group)  # Show only original groups in legend
+  )
 combined_plot
 ```
-####### pre dominant 
-```{r}
+###### pre dominant 
+visualize the  chr3 184300392 PSMD2 +
+```{r warning=FALSE}
 length(which(lm_results_index_delta_exp_methylation_cor_coefficients_spliced[index_delta_exp_pre_dominant_n]<0))
 
 length(which(lm_results_index_delta_exp_methylation_cor_coefficients_spliced[index_delta_exp_pre_dominant_n]>0))
@@ -3179,17 +3828,29 @@ length(which(lm_results_index_delta_exp_methylation_cor_coefficients_spliced[ind
 
 ind <- which.min(res_transcriptional_impact_analysis[["delta_exp_and_methylation_cor"]][index_delta_exp_pre_dominant_n])
 
+SNP_37199[index_delta_exp_pre_dominant_n[ind]]
+
 data_plot <- as.data.frame(cbind(as.numeric(res_transcriptional_impact_analysis[["other_information"]][["methylation_level_matrix"]][index_delta_exp_pre_dominant_n[ind],]),
                   as.numeric(res_transcriptional_impact_analysis[["other_information"]][["delta_exp_matrix"]][index_delta_exp_pre_dominant_n[ind],])))
 colnames(data_plot) <- c("x","y")
 
 
 cor(data_plot$x,data_plot$y,method = "spearman")
-plot_meta <-ggplot()+geom_point(data=data_plot,aes(x=x,y=y),
+plot_meta <-ggplot(data=data_plot,aes(x=x,y=y))+geom_point(
                                      size = 1,   
     alpha = 0.5,
-    color = "#2c7fb8")+coord_cartesian(xlim=c(-47,-31))+
-                theme_minimal()
+    color = "#2c7fb8")+
+  # Smoother lines with more distinct appearance
+  geom_smooth(
+              color = "black", 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid",
+              method = "lm",formula=y~I(poly(x,2))) +
+  scale_x_continuous(limits = c(-47,-31))+
+                theme_grey()+
+  ylab("delta exp") +
+  xlab("meta OR")
 plot_meta
 
 
@@ -3200,11 +3861,18 @@ colnames(data_plot) <- c("x","y")
 
 
 cor(data_plot$x,data_plot$y,method = "spearman")
-plot_spliced <-ggplot()+geom_point(data=data_plot,aes(x=x,y=y),
-                                     size = 1,   
+plot_spliced <-ggplot(data=data_plot,aes(x=x,y=y))+geom_point( size = 1,   
     alpha = 0.5,
-    color = "#2c7fb8")+coord_cartesian(xlim=c(-25,-15))+
-                theme_minimal()
+    color = "#2c7fb8")+
+  # Smoother lines with more distinct appearance
+  geom_smooth(
+              color = "black", 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid",
+              method = "lm",formula=y~I(poly(x,2))) +
+  scale_x_continuous(limits = c(-25,-15))+
+                theme_grey()
 plot_spliced
 
 
@@ -3215,11 +3883,18 @@ colnames(data_plot) <- c("x","y")
 
 
 cor(data_plot$x,data_plot$y,method = "spearman")
-plot_unspliced <-ggplot()+geom_point(data=data_plot,aes(x=x,y=y),
-                                     size = 1,   
+plot_unspliced <-ggplot(data=data_plot,aes(x=x,y=y))+geom_point(  size = 1,   
     alpha = 0.5,
-    color = "#2c7fb8")+coord_cartesian(xlim=c(-25,-15))+
-                theme_minimal()
+    color = "#2c7fb8")+
+  # Smoother lines with more distinct appearance
+  geom_smooth(
+              color = "black", 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid",
+              method = "lm",formula=y~I(poly(x,2))) +
+  scale_x_continuous(limits = c(-25,-15))+
+                theme_grey()
 plot_unspliced
 
 
@@ -3245,18 +3920,34 @@ cor_spliced <- cor(data_spliced$x, data_spliced$y, method = "spearman")
 cor_unspliced <- cor(data_unspliced$x, data_unspliced$y, method = "spearman")
 
 # Create combined plot
-combined_plot <- ggplot(combined_data, aes(x = x, y = y, color = group)) +
-    geom_point(size = 1, alpha = 0.5) +
-    coord_cartesian(xlim = c(-25,-15)) +
-    ylab("delta exp") +
-    xlab("OR methylation level") +
-    labs(color = "Group")  +
-                theme_minimal()
-            
+combined_plot <- ggplot(combined_data, aes(x = x, y = y)) +
+  # Points with original group colors
+  geom_point(aes(color = group), size = 1, alpha = 0.5) +
+  # Lines with modified group names (appending "_line")
+  geom_smooth(aes(group = group, color = paste0(group, "_line")), 
+              se = FALSE, 
+              size = 1.2,
+              linetype = "solid") +
+  scale_x_continuous(limits = c(-25, -15))+
+  ylab("delta exp") +
+  xlab("OR") +
+  labs(color = "Group") +
+  theme_grey() +
+  theme(legend.position = "none")+
+  # Automatic color assignment
+  scale_color_manual(
+    values = c(
+      setNames(scales::hue_pal()(length(unique(combined_data$group))), 
+               unique(combined_data$group)),
+      setNames(scales::hue_pal(l = 40)(length(unique(combined_data$group))), 
+               paste0(unique(combined_data$group), "_line"))
+    ),
+    breaks = unique(combined_data$group)  # Show only original groups in legend
+  )
 combined_plot
 ```
-##### visulization
-```{r}
+#### visulization
+```{r warning=FALSE}
 library(ggplot2)
 
 # Create a data frame for plotting
@@ -3275,8 +3966,9 @@ delta_exp_vis <- ggplot(data, aes(x = Category, y = log10(Value + 1), fill = Typ
   labs(title = NULL,
        x = NULL,
        y = "log10 (Count+1)") +
-  theme_minimal() +
-  theme(legend.position = c(0.73,0.8)) +
+  theme_grey() +
+  theme(legend.position = c(0.73,0.8),
+        legend.background = element_blank()) +
   scale_fill_brewer(palette = "Set2")  # Use color palette
 
 delta_exp_vis
@@ -3284,8 +3976,8 @@ delta_exp_vis
 
 ```
 
-##### fisher test
-```{r}
+#### fisher test
+```{r warning=FALSE}
 data <- matrix(c(9, 1, 2, 3074), nrow = 2, byrow = TRUE,
                dimnames = list(Category = c("Positive", "Negative"),
                                Type = c("Spliced", "Pre")))
@@ -3299,3 +3991,4 @@ result <- fisher.test(data)
 # Print the result
 print(result)
 ```
+
