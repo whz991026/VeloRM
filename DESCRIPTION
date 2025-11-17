@@ -23,7 +23,20 @@ Imports:
     cowplot
 Suggests: 
     knitr,
-    rmarkdown
+    rmarkdown,
+    GenomicRanges,
+    MetaTX,
+    Rtsne,
+    TxDb.Hsapiens.UCSC.hg38.knownGene,
+    TxDb.Mmusculus.UCSC.mm39.knownGene,
+    VennDiagram,
+    biomaRt,
+    dplyr,
+    ggforce,
+    ggh4x,
+    tidyr,
+    uwot,
+    scales
 VignetteBuilder: knitr
 URL: https://github.com/whz991026/VeloRM
 BugReports: https://github.com/whz991026/VeloRM/issues

@@ -471,13 +471,150 @@ for (i in folders) {
 names(isoform_list) <- paste0("YTHmutcell_", folders)
 saveRDS(isoform_list, "/gpfs/work/bio/haozhewang17/data/velocity/data_73/isoform_73_YTHmut.rds")
 ```
+### summary the count
+```{bash eval=FALSE}
+
+root_dir="/gpfs/work/bio/haozhewang17/data/velocity/data_73"
+
+
+output_file="bam_read_counts.csv"
+
+
+
+echo "Folder,isoform-a.bam,mRNA_spliced.bam,pre-mRNA.bam" > "$output_file"
+
+
+for folder in "$root_dir"/YTHcell_*; do
+    if [ -d "$folder" ]; then
+        folder_name=$(basename "$folder")
+        echo "Processing folder: $folder_name"
+        
+        
+        isoform_a_count="Not found"
+        mrna_spliced_count="Not found"
+        pre_mrna_count="Not found"
+        
+        #isoform-a.bam
+        isoform_a_file=$(find "$folder" -name "*_isoform-a.bam" | head -n 1)
+        if [ -n "$isoform_a_file" ] && [ -f "$isoform_a_file" ]; then
+            isoform_a_count=$(samtools view -c "$isoform_a_file")
+        fi
+        
+        #mRNA_spliced.bam
+        mrna_spliced_file=$(find "$folder" -name "*_mRNA_spliced.bam" | head -n 1)
+        if [ -n "$mrna_spliced_file" ] && [ -f "$mrna_spliced_file" ]; then
+            mrna_spliced_count=$(samtools view -c "$mrna_spliced_file")
+        fi
+        
+        #pre-mRNA.bam
+        pre_mrna_file=$(find "$folder" -name "*_pre-mRNA.bam" | head -n 1)
+        if [ -n "$pre_mrna_file" ] && [ -f "$pre_mrna_file" ]; then
+            pre_mrna_count=$(samtools view -c "$pre_mrna_file")
+        fi
+        
+        #
+        echo "$folder_name,$isoform_a_count,$mrna_spliced_count,$pre_mrna_count" >> "$output_file"
+    fi
+done
+
+echo "Processing complete. Results saved to $output_file"
+```
+### feature counts
+```{bash eval=FALSE}
+
+input_base="/gpfs/work/bio/haozhewang17/data/velocity/data_73"
+gtf_file="/gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38/Homo_sapiens.GRCh38.109.gtf"
+
+sample_dirs=($(find "$input_base" -maxdepth 1 -type d -name "YTHcell_*" ! -name "YTHcell" | sort))
+
+for sample_dir in ${sample_dirs[@]}; do
+    sample_name=$(basename "$sample_dir")
+    echo "Processing sample: $sample_name"
+
+    output_dir="${sample_dir}/counts"
+    mkdir -p "$output_dir"
+
+    bam_patterns=(
+        "*_mRNA_spliced.bam"
+        "*_pre-mRNA.bam"
+        "*_isoform-a.bam"
+    )
+
+    bam_found=false
+
+    for pattern in "${bam_patterns[@]}"; do
+        #
+        for bamfile in ${sample_dir}/${pattern}; do
+            [ -f "$bamfile" ] || continue
+            bam_found=true
+            bam_name=$(basename "$bamfile" .bam)
+            echo "  Counting reads in $bam_name"
+
+            featureCounts -T 4 -p -a "$gtf_file" -o "${output_dir}/${bam_name}.txt" "$bamfile"
+        done
+    done
+
+    #
+    if [ "$bam_found" = false ]; then
+        echo "  No matching BAM files found in $sample_name"
+    fi
+done
+
+```
+### combine gene counts
+SNP_all
+```{python eval=FALSE}
+import os
+import pandas as pd
+from glob import glob
+
+base_dir = "/gpfs/work/bio/haozhewang17/data/velocity/data_73"
+types = ["mRNA_spliced", "pre-mRNA", "isoform-a"]
+
+for t in types:
+    count_files = glob(os.path.join(base_dir, "YTHcell_*", "counts", f"*_{t}.txt"))
+    print(f"[{t}] Found {len(count_files)} count files.")
+
+    dfs_counts = []
+    dfs_tpm = []
+
+    for f in count_files:
+        df = pd.read_csv(f, sep="\t", comment="#", header=0)
+
+        gene_col = 'Geneid'
+        length_col = 'Length'
+        count_col = df.columns[-1]
+
+        df = df[[gene_col, length_col, count_col]].copy()
+        df.rename(columns={count_col: 'counts'}, inplace=True)
+
+        df["length_kb"] = df[length_col] / 1000
+        df["RPK"] = df["counts"] / df["length_kb"]
+        scaling_factor = df["RPK"].sum() / 1e6
+        df["TPM"] = df["RPK"] / scaling_factor
+
+        sample_name = os.path.basename(f).replace(".txt", "")
+
+        dfs_counts.append(df[[gene_col, "counts"]].set_index(gene_col).rename(columns={"counts": sample_name}))
+        dfs_tpm.append(df[[gene_col, "TPM"]].set_index(gene_col).rename(columns={"TPM": sample_name}))
+
+    if dfs_counts:
+        counts_matrix = pd.concat(dfs_counts, axis=1).fillna(0)
+        tpm_matrix = pd.concat(dfs_tpm, axis=1).fillna(0)
+
+        counts_out = os.path.join(base_dir, f"all_samples_counts_matrix_YTHcell_73_{t}.txt")
+        tpm_out = os.path.join(base_dir, f"all_samples_TPM_matrix_YTHcell_73_{t}.txt")
+
+        counts_matrix.to_csv(counts_out, sep="\t")
+        tpm_matrix.to_csv(tpm_out, sep="\t")
+
+        print(f"[{t}] Saved counts matrix: {counts_out}")
+        print(f"[{t}] Saved TPM matrix: {tpm_out}")
+```
 We will get the 
 Processed data:
 
-SNP_all
-
-Frequency data: frequency_pre_YTHmut, frequency_spliced_YTHmut, frequency_spliced_YTH, frequency_spliced_YTHmut,frequency_isoform_YTH,
-frequency_isoform_YTHmut
+Frequency data: frequency_pre_YTHmut, frequency_spliced_YTHmut, frequency_spliced_YTH, frequency_spliced_YTHmut,frequency_isoform_YTH, frequency_isoform_YTHmut,isoform_TPM, pre_TPM, spliced_TPM
 
 Downloaded data (from https://www.cell.com/cell-genomics/fulltext/S2666-979X(24)00331-8):
 
@@ -1508,25 +1645,27 @@ box_plot <- ggplot(df_long, aes(x = "", y = Probability, fill = Type)) +
 
 box_plot
 
-# Create a data frame with the summed proportions
+# Prepare plot_data as before
 plot_data <- data.frame(
-  category = c("Spliced", "Unspliced"),
-  proportion = c(sum(counts_data[,3]), sum(counts_data[,4]))
+  category = c("Spliced", "Unspliced", "Ambiguous"),
+  proportion = c(sum(counts_data[,3]), sum(counts_data[,4]), sum(counts_data[,2]))
 )
 
-# Create the barplot
-barplot <- ggplot(plot_data, aes(x = category, y = proportion, fill = category)) +
-  geom_bar(stat = "identity", width = 0.7) +
-  geom_text(aes(label = round(proportion, 2)), vjust = -0.5, size = 5) + # Add values on top
-  scale_fill_manual(values = c("Spliced" = "salmon", "Unspliced" = "steelblue")) +
-  labs(title = NULL,
-       x = NULL,
-       y = "Total read counts") +
-  theme_grey(base_size = 14) + # Using theme_grey with larger base font size
-  theme(legend.position = "none", # Remove legend
-        plot.title = element_text(hjust = 0.5)) +# Center title
-  coord_cartesian(ylim = c(0,4.5e9))
-barplot
+# Add a fraction/percentage column for labels
+plot_data$percentage <- round(plot_data$proportion / sum(plot_data$proportion) * 100, 2)
+
+# Create pie chart
+pie_chart <- ggplot(plot_data, aes(x = "", y = proportion, fill = category)) +
+  geom_bar(stat = "identity", width = 1) +    # stacked bar
+  coord_polar(theta = "y") +                  # convert to pie chart
+  geom_text(aes(label = paste0(percentage, "%")), 
+            position = position_stack(vjust = 0.5), size = 5) + # Add percentages inside slices
+  labs(title = "Read Counts Distribution") +
+  theme_void() +                              # Clean theme without axes
+  theme(legend.title = element_blank(),       # Remove legend title
+        plot.title = element_text(hjust = 0.5, size = 16))     # Center title
+
+pie_chart
 
 
 # SigRMtest_res_spliced_overall <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SigRMtest_res_spliced_overall.rds")
@@ -1545,7 +1684,7 @@ intersect_l <- length(intersect(spliced_index,unspliced_index))
 
 
 library(VennDiagram)
-
+grid.newpage()
 venn <-draw.pairwise.venn(
   area1 = spliced_index_l,
   area2 = unspliced_index_l,
@@ -1557,7 +1696,7 @@ venn <-draw.pairwise.venn(
   cex = 2,
   cat.cex = 1.5
 )
-grid.newpage()
+
 grid.draw(venn)
 ```
 
@@ -1740,62 +1879,6 @@ plot <- ggplot(all_distances_df, aes(x = group, y = log10(distance+1), fill = gr
  theme(plot.title = element_text(hjust = 0.5),
        legend.position = "none")+coord_cartesian(ylim = c(0,5))
 plot
-```
-### SigRM results
-```{r warning=FALSE}
-
-SigRMtest_res_spliced <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SigRMtest_res_spliced.rds")
-SigRMtest_res_unspliced <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SigRMtest_res_unspliced.rds")
-
-SigRMtest_res_spliced_p_value <- SigRMtest_res_spliced[["p value"]]
-SigRMtest_res_unspliced_p_value <- SigRMtest_res_unspliced[["p value"]]
-
-
-SigRMtest_res_spliced_p_value_median <- apply(SigRMtest_res_spliced_p_value,1,function(x) median(x,na.rm=TRUE))
-
-SigRMtest_res_unspliced_p_value_median <- apply(SigRMtest_res_unspliced_p_value,1,function(x) median(x,na.rm=TRUE))
-
-
-# Compute -log10(p-values)
-log_p_spliced <- -log10(SigRMtest_res_spliced_p_value_median)
-log_p_unspliced <- -log10(SigRMtest_res_unspliced_p_value_median)
-
-# Create a combined dataframe for plotting
-library(ggplot2)
-df <- data.frame(
-  log_p_value = c(log_p_spliced, log_p_unspliced),
-  Type = rep(c("Spliced", "Unspliced"), each = length(log_p_spliced))
-)
-
-# comparison the distribution
-comparison_distribution <- ggplot(df, aes(x = log_p_value, fill = Type)) +
-  geom_density(alpha = 0.5, bw = 0.6) +  # Adjust bw for smoothness
-  geom_vline(xintercept = -log10(0.05), linetype = "dashed", color = "red", linewidth = 1) +  # Add vertical line
-    annotate("text", x = -log10(0.05)+0.05, y = 0.5, label = "p-value = 0.05", color = "red", hjust = 0,size=5) +
-  labs(title = "Median p-value Distribution",
-       x = "-log10(p-value)",
-       y = "Density")  +
-  coord_cartesian(xlim = c(0, 3.5)) +
-  theme_grey(base_size = 14)+
-  theme(
-    legend.position = c(0.8, 0.8),  # Adjust legend inside the plot
-    plot.title = element_text(hjust = 0.5, vjust = 2),  # Centered & bold title
-    legend.background = element_blank()  # Improve legend visibility
-  )
-comparison_distribution
-
-library(ggvenn)
-
-sig_spliced <- which(SigRMtest_res_spliced_p_value_median <= 0.05)
-sig_unspliced <- which(SigRMtest_res_unspliced_p_value_median <= 0.05)
-
-# Create a named list for the Venn diagram
-venn_list <- list(
-  Spliced = sig_spliced,
-  Unspliced = sig_unspliced
-)
-ggvenn(venn_list,fill_alpha = 0.7,stroke_size = 0.5)
-
 ```
 
 ### read the DESeq2 results
@@ -2129,199 +2212,6 @@ compare_metaTX_plot <-ggplot(combined_data, aes(x = x, y = y, color = Group))+
 compare_metaTX_plot
 
 ```
-#### motif plot
-```{r warning=FALSE}
-library(GenomicRanges)
-library(Biostrings)
-library(BSgenome)
-library(BSgenome.Hsapiens.UCSC.hg38)
-genome <- BSgenome.Hsapiens.UCSC.hg38
-
-
-intersect_pre_dominate <- intersect(index_pre_high_spliced_low,which(SigRMtest_res_unspliced_pvalue_median<=0.05))
-
-intersect_spliced_dominate <- intersect(index_spliced_high_pre_low,which(SigRMtest_res_spliced_pvalue_median<=0.05))
-
-
-index_not_dominate <- which(SigRMtest_res_overall_pvalue_median<=0.05)
-
-# metaTX
-
-txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
-
-SNP_intersect_pre_dominate <- SNP_37199[intersect_pre_dominate]
-SNP_intersect_spliced_dominate <- SNP_37199[intersect_spliced_dominate]
-SNP_intersect_not_dominate <- SNP_450974[index_not_dominate]
-
-SNP_to_exclude <- c(SNP_intersect_pre_dominate, SNP_intersect_spliced_dominate)
-
-library(GenomicRanges)
-hits <- findOverlaps(SNP_intersect_not_dominate, SNP_to_exclude)
-
-if(length(hits)!=0){
-  SNP_intersect_not_dominate<- SNP_intersect_not_dominate[-queryHits(hits)]
-}
-## pre 
-
-
-
-# transcript_strand  +
-SNP_intersect_pre_dominate_plus <-SNP_intersect_pre_dominate[which(SNP_intersect_pre_dominate$transcript_strand=="+")] 
-
-
-extended_range_intersect_pre_dominate_plus <- resize(SNP_intersect_pre_dominate_plus, width = 11, fix = "center")
-
-# getseq
-sequence_intersect_pre_dominate_plus <- getSeq(genome, extended_range_intersect_pre_dominate_plus)
-
-sequence_intersect_pre_dominate_plus <- subseq(sequence_intersect_pre_dominate_plus, start = 3, end = 7)
-
-# transcript_strand  -
-SNP_intersect_pre_dominate_minus <-SNP_intersect_pre_dominate[which(SNP_intersect_pre_dominate$transcript_strand=="-")] 
-
-extended_range_intersect_pre_dominate_minus <- resize(SNP_intersect_pre_dominate_minus, width = 11, fix = "center")
-
-# getseq
-sequence_intersect_pre_dominate_minus <- getSeq(genome, extended_range_intersect_pre_dominate_minus)
-
-sequence_intersect_pre_dominate_minus <- (subseq(sequence_intersect_pre_dominate_minus, start = 5, end = 9))
-
-## spliced
-
-
-
-# transcript_strand  +
-SNP_intersect_spliced_dominate_plus <-SNP_intersect_spliced_dominate[which(SNP_intersect_spliced_dominate$transcript_strand=="+")] 
-
-extended_range_intersect_spliced_dominate_plus <- resize(SNP_intersect_spliced_dominate_plus, width = 11, fix = "center")
-
-# getseq
-sequence_intersect_spliced_dominate_plus <- getSeq(genome, extended_range_intersect_spliced_dominate_plus)
-
-sequence_intersect_spliced_dominate_plus <- subseq(sequence_intersect_spliced_dominate_plus, start = 3, end = 7)
-
-# transcript_strand  -
-SNP_intersect_spliced_dominate_minus <-SNP_intersect_spliced_dominate[which(SNP_intersect_spliced_dominate$transcript_strand=="-")] 
-
-extended_range_intersect_spliced_dominate_minus <- resize(SNP_intersect_spliced_dominate_minus, width = 11, fix = "center")
-
-# getseq
-sequence_intersect_spliced_dominate_minus <- getSeq(genome, extended_range_intersect_spliced_dominate_minus)
-
-sequence_intersect_spliced_dominate_minus <- (subseq(sequence_intersect_spliced_dominate_minus, start = 5, end = 9))
-
-
-
-
-
-
-## not 
-
-
-
-# transcript_strand  +
-SNP_intersect_not_dominate_plus <-SNP_intersect_not_dominate[which(SNP_intersect_not_dominate$transcript_strand=="+")] 
-
-
-extended_range_intersect_not_dominate_plus <- resize(SNP_intersect_not_dominate_plus, width = 11, fix = "center")
-
-# getseq
-sequence_intersect_not_dominate_plus <- getSeq(genome, extended_range_intersect_not_dominate_plus)
-
-sequence_intersect_not_dominate_plus <- subseq(sequence_intersect_not_dominate_plus, start = 3, end = 7)
-
-# transcript_strand  -
-SNP_intersect_not_dominate_minus <-SNP_intersect_not_dominate[which(SNP_intersect_not_dominate$transcript_strand=="-")] 
-
-extended_range_intersect_not_dominate_minus <- resize(SNP_intersect_not_dominate_minus, width = 11, fix = "center")
-
-# getseq
-sequence_intersect_not_dominate_minus <- getSeq(genome, extended_range_intersect_not_dominate_minus)
-
-sequence_intersect_not_dominate_minus <- (subseq(sequence_intersect_not_dominate_minus, start = 5, end = 9))
-
-
-sequence_intersect_pre_dominate_minus_rc <- reverseComplement(sequence_intersect_pre_dominate_minus)
-sequence_intersect_pre_dominate_minus_rc <- chartr("T", "U", as.character(sequence_intersect_pre_dominate_minus_rc))
-sequence_intersect_pre_dominate_plus_rc <- reverseComplement(sequence_intersect_pre_dominate_plus)
-sequence_intersect_pre_dominate_plus_rc <- chartr("T", "U", as.character(sequence_intersect_pre_dominate_plus_rc))
-
-
-sequence_intersect_pre_dominate_plus <- chartr("T", "U", as.character(sequence_intersect_pre_dominate_plus))
-sequence_intersect_pre_dominate_minus <- chartr("T", "U", as.character(sequence_intersect_pre_dominate_minus))
-
-
-
-sequence_intersect_spliced_dominate_minus_rc <- reverseComplement(sequence_intersect_spliced_dominate_minus)
-sequence_intersect_spliced_dominate_minus_rc <- chartr("T", "U", as.character(sequence_intersect_spliced_dominate_minus_rc))
-sequence_intersect_spliced_dominate_plus_rc <- reverseComplement(sequence_intersect_spliced_dominate_plus)
-sequence_intersect_spliced_dominate_plus_rc <- chartr("T", "U", as.character(sequence_intersect_spliced_dominate_plus_rc))
-
-
-sequence_intersect_spliced_dominate_plus <- chartr("T", "U", as.character(sequence_intersect_spliced_dominate_plus))
-sequence_intersect_spliced_dominate_minus <- chartr("T", "U", as.character(sequence_intersect_spliced_dominate_minus))
-
-sequence_intersect_not_dominate_minus_rc <- reverseComplement(sequence_intersect_not_dominate_minus)
-sequence_intersect_not_dominate_minus_rc <- chartr("T", "U", as.character(sequence_intersect_not_dominate_minus_rc))
-sequence_intersect_not_dominate_plus_rc <- reverseComplement(sequence_intersect_not_dominate_plus)
-sequence_intersect_not_dominate_plus_rc <- chartr("T", "U", as.character(sequence_intersect_not_dominate_plus_rc))
-
-
-
-sequence_intersect_not_dominate_plus <- chartr("T", "U", as.character(sequence_intersect_not_dominate_plus))
-sequence_intersect_not_dominate_minus <- chartr("T", "U", as.character(sequence_intersect_not_dominate_minus))
-
-
-
-
-sequence_intersect_pre_dominate <- c(sequence_intersect_pre_dominate_plus,sequence_intersect_pre_dominate_minus_rc)
-
-sequence_intersect_spliced_dominate <- c(sequence_intersect_spliced_dominate_plus,sequence_intersect_spliced_dominate_minus_rc)
-
-sequence_intersect_not_dominate <- c(sequence_intersect_not_dominate_plus,sequence_intersect_not_dominate_minus_rc)
-
-
-
-library(ggseqlogo)
-seq_list <- list(
-    "pre_dominate" = as.character(sequence_intersect_pre_dominate),
-    "spliced_dominate" = as.character(sequence_intersect_spliced_dominate),
-    "not_dominate" = as.character(sequence_intersect_not_dominate),
-    "pre_dominate_plus" = as.character(sequence_intersect_pre_dominate_plus),
-    "spliced_dominate_plus" = as.character(sequence_intersect_spliced_dominate_plus),
-    "not_dominate_plus" = as.character(sequence_intersect_not_dominate_plus),
-    "pre_dominate_minus" = as.character(sequence_intersect_pre_dominate_minus),
-    "spliced_dominate_minus" = as.character(sequence_intersect_spliced_dominate_minus),
-    "not_dominate_minus" = as.character(sequence_intersect_not_dominate_minus)
-)
-ggseqlogo(seq_list, method = 'bits') + 
-    facet_wrap(~seq_group, ncol = 3, scales = "free_x")
-
-seq_list <- list(
-    "pre_dominate" = as.character(sequence_intersect_pre_dominate),
-    "spliced_dominate" = as.character(sequence_intersect_spliced_dominate),
-    "not_dominate" = as.character(sequence_intersect_not_dominate))
-
-
-library(universalmotif)
-
-motif_list <- lapply(seq_list,function(x) create_motif(x, alphabet = "RNA"))
-# bits_matrix_list <- lapply(motif_list,function(x) convert_type(x, "ICM")@motif)
-# 
-# bits_matrix_list <- lapply(bits_matrix_list,function(x)log2(x+1))
-# 
-# ggseqlogo(bits_matrix_list, method = 'custom', seq_type = "DNA") + 
-#     facet_wrap(~seq_group, ncol = 3, scales = "free_x") 
-ggseqlogo(seq_list, method = 'bits', seq_type = "RNA") + 
-     facet_wrap(~seq_group, ncol = 3, scales = "free_x")   +
-  theme_grey() 
-
-ggseqlogo(seq_list, method = 'prob', seq_type = "RNA") + 
-     facet_wrap(~seq_group, ncol = 3, scales = "free_x")  +
-  theme_grey() 
-```
-
-
 
 #### find the index of site only detect methylated reads in spliced or pre mRNA
 ```{r warning=FALSE}
@@ -2590,7 +2480,7 @@ res <- site.relative.velocity.estimates(emat = spliced.meth.test+spliced.unmeth.
                                                     fit.quantile = 0.05, n.cores = 1, emat.size = emat_size, 
                                                     nmat.size = nmat_size)
 
-# saveRDS(res, "/gpfs/work/bio/haozhewang17/data/VeloRM_data/results/res_expression_velocity.rds")
+# saveRDS(res, "/gpfs/work/bio/haozhewang17/data/VeloRM_data/results/res_aboundance_velocity.rds")
 
 ```
 
@@ -3220,7 +3110,8 @@ plot_site119_OR
 
 ```
 
-
+### scVelo
+jupyter notebook is in figshare: https://doi.org/10.6084/m9.figshare.28955183 or https://github.com/whz991026/VeloRM
 
 
 ### run the transcriptional_impact_analysis
@@ -3231,14 +3122,14 @@ res_preprocess <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/res_prepro
 test.list <- res_preprocess[[1]]
 control.list <- res_preprocess[[2]]
 
-res_methylation <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_1_site_1_delta_0.01/res.rds")
-res_expression <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_1_site_1_delta_0.01/res_expression.rds")
+res_methylation <- readRDS("D:/data/VeloRM_data/scDART-seq/results/res_m6A_velocity.rds")
+res_aboundance <- readRDS("D:/data/VeloRM_data/scDART-seq/results/res_aboundance_velocity.rds")
 
 
 res_transcriptional_impact_analysis <- transcriptional.impact.analysis(test.list = test.list,
                                                                        control.list = control.list,
                                                                        methylation.site.relative.velocity.result = res_methylation,
-                                                                       exp.site.velocity.result = res_expression,delta_exp = "delta_from_exp_velocity",delta_exp_TPM = FALSE,methylation_level = "meta_OR_sep",methylation_level_scale = "log2",cor_method="spearman")
+                                                                       exp.site.velocity.result = res_aboundance,delta_exp = "delta_from_exp_velocity",delta_exp_TPM = FALSE,methylation_level = "meta_OR_sep",methylation_level_scale = "log2",cor_method="spearman")
 
 # saveRDS(res_transcriptional_impact_analysis,"D:/data/VeloRM_data/scDART-seq/results/transcriptional_impact_analysis/res_transcriptional_impact_analysis.rds")
 
