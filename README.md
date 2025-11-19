@@ -20,7 +20,7 @@ devtools::install_github("whz991026/VeloRM")
 
 ## Example
 
-The example can be found in vignette/doc.
+The example can be found in VeloRM code & scVelo.
 
 ## data
 (https://doi.org/10.6084/m9.figshare.28955183)
