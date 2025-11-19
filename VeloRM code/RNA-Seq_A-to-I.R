@@ -1,0 +1,1549 @@
+## ----include = FALSE----------------------------------------------------------
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+## ----setup--------------------------------------------------------------------
+library(VeloRM)
+
+## ----eval=FALSE---------------------------------------------------------------
+#  # Extract SRR sample folder names into a character vector (skip the header line)
+#  srr_info <- list.dirs("/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/", recursive = FALSE, full.names = FALSE)
+#  srr_info <- srr_info[grepl("SRR", srr_info)]  # Keep only directories containing "SRR"
+#  
+#  # Load required packages
+#  library(GenomicRanges)
+#  library(vcfR)
+#  library(Biostrings)
+#  library(TxDb.Mmusculus.UCSC.mm39.knownGene)  # Changed to mouse mm39
+#  library(BSgenome.Mmusculus.UCSC.mm39)        # Changed to mouse mm39
+#  
+#  # Loop over each SRR sample
+#  for (srr in srr_info) {
+#    # Load VCF file
+#    data <- read.vcfR(paste0("/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/", srr, "/", srr, "_calls.vcf"))
+#    data2 <- as.data.frame(data@fix)
+#  
+#    # Keep entries with valid nucleotide bases
+#    data2 <- data2[data2$REF %in% c('A', 'C', 'G', 'T') & data2$ALT %in% c('A', 'C', 'G', 'T'), ]
+#  
+#    if (nrow(data2) == 0) {
+#      # If no valid SNPs, save empty object
+#      saveRDS(NULL, paste0("/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/", srr, "/", srr, "SNP.rds"))
+#    } else {
+#      # Create GRanges object for SNPs
+#      gr <- GRanges(seqnames = paste0(data2$CHROM),
+#                    ranges = IRanges(start = as.numeric(data2$POS), width = 1),
+#                    strand = '+',
+#                    ref = data2$REF,
+#                    alt = data2$ALT,
+#                    quality = as.numeric(data2$QUAL),
+#                    info = data2$INFO)
+#  
+#      # Keep only standard chromosomes
+#      gr <- keepStandardChromosomes(gr, pruning.mode = "coarse")
+#  
+#      # Validate reference bases with genome
+#      ref <- as.character(DNAStringSet(Views(Mmusculus, gr)))
+#      gr <- gr[gr$ref == ref]
+#  
+#      saveRDS(gr, paste0("/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/", srr, "/", srr, "SNP.rds"))
+#  
+#      # Load transcript annotation
+#      transcript <- transcripts(TxDb.Mmusculus.UCSC.mm39.knownGene)
+#      transcript_plus <- transcript[strand(transcript) == "+"]
+#      transcript_minus <- transcript[strand(transcript) == "-"]
+#  
+#      # Filter A>G mutations on the + strand
+#      gr_plus <- gr
+#      olp <- findOverlaps(gr_plus, transcript_plus)
+#      gr_plus <- gr_plus[queryHits(olp)]
+#      gr_plus$transcript_overlapped <- transcript_plus[subjectHits(olp)]$tx_name
+#      if (length(gr_plus) > 0) {
+#        gr_plus$transcript_strand <- '+'
+#        gr_plus <- unique(gr_plus)
+#        gr_plus <- gr_plus[gr_plus$ref == "A" & gr_plus$alt == "G"]
+#      } else {
+#        gr_plus <- NULL
+#      }
+#  
+#      # Filter T>C mutations on the - strand (reverse-complement)
+#      gr_minus <- gr
+#      strand(gr_minus) <- '-'
+#      olp <- findOverlaps(gr_minus, transcript_minus)
+#      gr_minus <- gr_minus[queryHits(olp)]
+#      gr_minus$transcript_overlapped <- transcript_minus[subjectHits(olp)]$tx_name
+#      if (length(gr_minus) > 0) {
+#        gr_minus$transcript_strand <- '-'
+#        gr_minus <- unique(gr_minus)
+#        strand(gr_minus) <- '+'
+#        gr_minus <- gr_minus[gr_minus$ref == "T" & gr_minus$alt == "C"]
+#      } else {
+#        gr_minus <- NULL
+#      }
+#  
+#      # Combine both strand results and save
+#      gr_filtered <- c(gr_plus, gr_minus)
+#      saveRDS(gr_filtered, paste0("/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/", srr, "/", srr, "SNP_filtered.rds"))
+#    }
+#  
+#    print(paste0("Finished processing ", srr))
+#  }
+#  
+#  # Combine all filtered SNPs across samples
+#  gr_all <- GRanges()
+#  for (srr in srr_info) {
+#    gr <- readRDS(paste0("/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/", srr, "/", srr, "SNP_filtered.rds"))
+#    if (!is.null(gr)) {
+#      gr_all <- c(gr_all, gr)
+#    }
+#  }
+#  gr_all <- unique(gr_all)
+#  
+#  # Save combined SNP results
+#  saveRDS(gr_all, "/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/SNP_all.rds")
+#  
+#  
+
+## ----eval=FALSE---------------------------------------------------------------
+#  # Extract SRR sample folder names into a character vector (skip the header line)
+#  srr_info <- list.dirs("/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR", recursive = FALSE, full.names = FALSE)
+#  srr_info <- srr_info[grepl("SRR", srr_info)]  # Keep only directories containing "SRR"
+#  
+#  library(GenomicRanges)
+#  library(Biostrings)
+#  library(GenomicAlignments)
+#  library(Rsamtools)
+#  
+#  
+#  gr_all<- readRDS('/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/SNP_all.rds')
+#  
+#  
+#  gr_all <-gr_all[,-c(1:5)]
+#  
+#  
+#  ## base counting
+#  j <- 0
+#  for (srr in srr_info) {
+#  
+#    time_0 <- Sys.time()
+#    j <- j+1
+#    name <- srr
+#    path <- paste0("/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/",srr,"/")
+#  
+#    ################################## mRNA_spliced.bam
+#    ##################################
+#    bamfilePath <- paste0(path,srr,'_mRNA_spliced.bam')
+#    flag <- scanBamFlag(isNotPassingQualityControls=FALSE,
+#                        isDuplicate=FALSE)
+#    param <- ScanBamParam(flag=flag, what=c("seq","qual"),which=gr_all)
+#    alns <- readGAlignments(bamfilePath, param=param)
+#    alns <- keepStandardChromosomes(alns,pruning.mode = "coarse")
+#    qseq <- mcols(alns)$seq
+#    qual <- mcols(alns)$qual
+#    seqlevels(alns) <- seqlevels(gr_all)
+#  
+#    nucl_piles <- pileLettersAt(qseq, seqnames(alns), start(alns),
+#                                cigar(alns), gr_all)
+#    frequency <- alphabetFrequency(nucl_piles, baseOnly=TRUE)
+#  
+#    saveRDS(nucl_piles,paste0(bamfilePath,'_nucl_piles_all.rds'))
+#    saveRDS(frequency,paste0(bamfilePath,'_frequency_all.rds'))
+#    rm(param,alns,qseq,qual,nucl_piles,frequency,flag)
+#  
+#    time_1 <- Sys.time()
+#    ################################## pre-mRNA.bam
+#    ##################################
+#    bamfilePath <- paste0(path,srr,'_pre-mRNA.bam')
+#    flag <- scanBamFlag(isNotPassingQualityControls=FALSE,
+#                        isDuplicate=FALSE)
+#    param <- ScanBamParam(flag=flag, what=c("seq","qual"),which=gr_all)
+#    alns <- readGAlignments(bamfilePath, param=param)
+#    alns <- keepStandardChromosomes(alns,pruning.mode = "coarse")
+#    qseq <- mcols(alns)$seq
+#    qual <- mcols(alns)$qual
+#    seqlevels(alns) <- seqlevels(gr_all)
+#  
+#    nucl_piles <- pileLettersAt(qseq, seqnames(alns), start(alns),
+#                                cigar(alns), gr_all)
+#    frequency <- alphabetFrequency(nucl_piles, baseOnly=TRUE)
+#  
+#    saveRDS(nucl_piles,paste0(bamfilePath,'_nucl_piles_all.rds'))
+#    saveRDS(frequency,paste0(bamfilePath,'_frequency_all.rds'))
+#    rm(param,alns,qseq,qual,nucl_piles,frequency,flag)
+#  
+#    time_2 <- Sys.time()
+#    ################################## isoform.bam
+#    ##################################
+#    bamfilePath <- paste0(path,srr,'_isoform-a.bam')
+#    flag <- scanBamFlag(isNotPassingQualityControls=FALSE,
+#                        isDuplicate=FALSE)
+#    param <- ScanBamParam(flag=flag, what=c("seq","qual"),which=gr_all)
+#    alns <- readGAlignments(bamfilePath, param=param)
+#    alns <- keepStandardChromosomes(alns,pruning.mode = "coarse")
+#    qseq <- mcols(alns)$seq
+#    qual <- mcols(alns)$qual
+#    seqlevels(alns) <- seqlevels(gr_all)
+#  
+#    nucl_piles <- pileLettersAt(qseq, seqnames(alns), start(alns),
+#                                cigar(alns), gr_all)
+#    frequency <- alphabetFrequency(nucl_piles, baseOnly=TRUE)
+#  
+#    saveRDS(nucl_piles,paste0(bamfilePath,'_nucl_piles_all.rds'))
+#    saveRDS(frequency,paste0(bamfilePath,'_frequency_all.rds'))
+#    rm(param,alns,qseq,qual,nucl_piles,frequency,flag)
+#      time_3 <- Sys.time()
+#  
+#    print(j)
+#    print(paste0("spliced mRNA runing time", time_1-time_0))
+#    print(paste0("pre-mRNA runing time", time_2-time_1))
+#      print(paste0("isoform-mRNA runing time", time_3-time_2))
+#  }
+#  
+#  
+#  # combine:
+#  # Extract SRR sample folder names into a character vector (skip the header line)
+#  srr_info <- list.dirs("/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR", recursive = FALSE, full.names = FALSE)
+#  srr_info <- srr_info[grepl("SRR", srr_info)]  # Keep only directories containing "SRR"
+#  
+#  
+#  
+#  # Initialize the spliced_list
+#  spliced_list <- list()
+#  j = 1
+#  for (srr in srr_info) {
+#    name <- srr
+#    path <- paste0('/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/', srr,"/")
+#    spliced_list[[j]] <- readRDS(paste0(path, srr, "_mRNA_spliced.bam_frequency_all.rds"))
+#    j = j + 1
+#  }
+#  
+#  # Name the elements of spliced_list
+#  names(spliced_list) <- srr_info
+#  saveRDS(spliced_list, "/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/spliced_A_to_I.rds")
+#  
+#  # Initialize the pre_list
+#  pre_list <- list()
+#  j = 1
+#  for (srr in srr_info) {
+#    name <- srr
+#    path <- paste0('/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/', srr,"/")
+#    pre_list[[j]] <- readRDS(paste0(path, srr, "_pre-mRNA.bam_frequency_all.rds"))
+#    j = j + 1
+#  }
+#  
+#  # Name the elements of isoform_list
+#  names(pre_list) <- srr_info
+#  saveRDS(pre_list, "/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/pre_A_to_I.rds")
+#  
+#  
+#  # Initialize the isoform_list
+#  isoform_list <- list()
+#  j = 1
+#  for (srr in srr_info) {
+#    name <- srr
+#    path <- paste0('/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/', srr,"/")
+#    isoform_list[[j]] <- readRDS(paste0(path, srr, "_isoform-a.bam_frequency_all.rds"))
+#    j = j + 1
+#  }
+#  
+#  # Name the elements of pre_list
+#  names(isoform_list) <- srr_info
+#  saveRDS(isoform_list, "/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE99933/SRR/isoform_A_to_I.rds")
+#  
+
+## ----eval=FALSE---------------------------------------------------------------
+#  
+#  # Read a tab-separated file (common for .txt exports)
+#  isoform_TPM <- read.table("C:/Users/Haozhe Wang/OneDrive/desktop/all_samples_TPM_matrix_isoform-a.txt",
+#                        header = TRUE,        # First row contains column names
+#                        row.names = 1,
+#                        sep = "\t")           # Separator is a tab
+#  
+#  # Read a tab-separated file (common for .txt exports)
+#  spliced_TPM <- read.table("C:/Users/Haozhe Wang/OneDrive/desktop/all_samples_TPM_matrix_mRNA_spliced.txt",
+#                            header = TRUE,        # First row contains column names
+#                            row.names = 1,
+#                            sep = "\t")           # Separator is a tab
+#  
+#  # Read a tab-separated file (common for .txt exports)
+#  pre_TPM <- read.table("C:/Users/Haozhe Wang/OneDrive/desktop/all_samples_TPM_matrix_pre-mRNA.txt",
+#                            header = TRUE,        # First row contains column names
+#                            row.names = 1,
+#                            sep = "\t")           # Separator is a tab
+#  
+#  colnames(isoform_TPM) <- gsub("_isoform\\.a", "", colnames(isoform_TPM))
+#  colnames(spliced_TPM) <- gsub("_mRNA_spliced", "", colnames(spliced_TPM))
+#  colnames(pre_TPM) <- gsub("_pre\\.mRNA", "", colnames(pre_TPM))
+#  
+#  index_isoform <- which(rowSums(isoform_TPM)!=0)
+#  index_spliced <- which(rowSums(spliced_TPM)!=0)
+#  index_pre <- which(rowSums(pre_TPM)!=0)
+#  
+#  index_pre_spliced <- intersect(index_pre,index_spliced)
+#  
+#  isoform_TPM_index_pre_spliced <- isoform_TPM[index_pre_spliced ,]
+#  pre_TPM_index_pre_spliced <- pre_TPM[index_pre_spliced ,]
+#  spliced_TPM_index_pre_spliced <- spliced_TPM[index_pre_spliced ,]
+#  
+#  setwd("C:/Users/Haozhe Wang/OneDrive/desktop")
+#  
+#  write.csv(isoform_TPM_index_pre_spliced, "isoform_TPM_index_pre_spliced.csv", row.names = TRUE, quote = FALSE)
+#  
+#  write.csv(pre_TPM_index_pre_spliced, "pre_TPM_index_pre_spliced.csv", row.names = TRUE, quote = FALSE)
+#  
+#  write.csv(spliced_TPM_index_pre_spliced, "spliced_TPM_index_pre_spliced.csv", row.names = TRUE, quote = FALSE)
+#  
+
+## ----eval=FALSE---------------------------------------------------------------
+#  
+#  ##  pre
+#  
+#  
+#  
+#  frequency_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/origin/pre_A_to_I.rds")
+#  
+#  
+#  testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/origin/SNP_all.rds")
+#  
+#  
+#  head(frequency_all[[1]])
+#  testSNP_all
+#  
+#  
+#  library(dplyr)
+#  # get the number of cell number of sites
+#  
+#  num_cell <- length(frequency_all)
+#  num_sites <- length(testSNP_all)
+#  
+#  # get the index of the + - STAND
+#  
+#  strand <- testSNP_all$transcript_strand
+#  strand_plus <- which(strand=="+")
+#  strand_minus <- which(strand=="-")
+#  
+#  error_rate_list <- list()
+#  
+#  error_reads_list <- list()
+#  methylation_rate <- list()
+#  
+#  site_length_nomatch <-  which(lapply(frequency_all, function(x) dim(x)[1])!=length(testSNP_all))
+#  
+#  
+#  for (i in 1:num_cell){
+#  
+#    # change to data frame and add strand column
+#  
+#    frequency_all[[i]] <-  data.frame(frequency_all[[i]])
+#  
+#    # get methylated reads
+#  
+#    methylated_reads <- rep(0, num_sites)
+#    methylated_reads[strand_plus] <- frequency_all[[i]][strand_plus,3]
+#    methylated_reads[strand_minus] <-frequency_all[[i]][strand_minus,4]
+#  
+#    # get unmethylated reads
+#  
+#    unmethylated_reads <- rep(0, num_sites)
+#    unmethylated_reads[strand_plus] <- frequency_all[[i]][strand_plus,1]
+#    unmethylated_reads[strand_minus] <- frequency_all[[i]][strand_minus,2]
+#  
+#  
+#  
+#    # get error reads
+#  
+#    error_reads <- rep(0, num_sites)
+#    error_reads[strand_plus] <- frequency_all[[i]][strand_plus,2]+frequency_all[[i]][strand_plus,4]+
+#      frequency_all[[i]][strand_plus,5]
+#    error_reads[strand_minus] <- frequency_all[[i]][strand_minus,1]+frequency_all[[i]][strand_minus,3]+
+#      frequency_all[[i]][strand_minus,5]
+#  
+#  
+#  
+#    frequency_all[[i]] <- frequency_all[[i]] %>%
+#      mutate(methylated_reads=methylated_reads)%>%
+#      mutate(unmethylated_reads=unmethylated_reads)%>%
+#      mutate(error_reads=error_reads)%>%
+#      select(methylated_reads,unmethylated_reads,error_reads)
+#  
+#    error_reads_list[[i]] <-  frequency_all[[i]]$error_reads
+#  
+#    frequency_all[[i]] <- frequency_all[[i]] %>%
+#      mutate(methylated_reads=methylated_reads)%>%
+#      mutate(unmethylated_reads=unmethylated_reads)%>%
+#      mutate(error_rate=error_reads/(methylated_reads+unmethylated_reads+error_reads))%>%
+#      select(methylated_reads,unmethylated_reads,error_rate)
+#  
+#    error_rate_list[[i]] <-  frequency_all[[i]]$error_rate
+#    frequency_all[[i]] <- frequency_all[[i]] %>% select(methylated_reads,unmethylated_reads)
+#  
+#    methylation_rate[[i]] <- frequency_all[[i]]$methylated_reads/(frequency_all[[i]]$methylated_reads+frequency_all[[i]]$unmethylated_reads)
+#  }
+#  
+#  
+#  
+#  
+#  setwd("/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/pre_process")
+#  saveRDS(error_rate_list,"error_rate_list_pre.rds")
+#  saveRDS(frequency_all,"reads_counts_pre.rds")
+#  saveRDS(error_reads_list,"error_reads_list_pre.rds")
+#  saveRDS(methylation_rate,"methylation_rate_pre.rds")
+#  
+#  
+#  
+#  ##  spliced
+#  
+#  
+#  
+#  frequency_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/origin/spliced_A_to_I.rds")
+#  
+#  
+#  
+#  testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/origin/SNP_all.rds")
+#  
+#  
+#  head(frequency_all[[1]])
+#  testSNP_all
+#  
+#  
+#  library(dplyr)
+#  # get the number of cell number of sites
+#  
+#  num_cell <- length(frequency_all)
+#  num_sites <- length(testSNP_all)
+#  
+#  # get the index of the + - STAND
+#  
+#  strand <- testSNP_all$transcript_strand
+#  strand_plus <- which(strand=="+")
+#  strand_minus <- which(strand=="-")
+#  
+#  error_rate_list <- list()
+#  
+#  error_reads_list <- list()
+#  methylation_rate <- list()
+#  
+#  site_length_nomatch <-  which(lapply(frequency_all, function(x) dim(x)[1])!=length(testSNP_all))
+#  
+#  
+#  for (i in 1:num_cell){
+#  
+#    # change to data frame and add strand column
+#  
+#    frequency_all[[i]] <-  data.frame(frequency_all[[i]])
+#  
+#    # get methylated reads
+#  
+#    methylated_reads <- rep(0, num_sites)
+#    methylated_reads[strand_plus] <- frequency_all[[i]][strand_plus,3]
+#    methylated_reads[strand_minus] <-frequency_all[[i]][strand_minus,4]
+#  
+#    # get unmethylated reads
+#  
+#    unmethylated_reads <- rep(0, num_sites)
+#    unmethylated_reads[strand_plus] <- frequency_all[[i]][strand_plus,1]
+#    unmethylated_reads[strand_minus] <- frequency_all[[i]][strand_minus,2]
+#  
+#  
+#  
+#    # get error reads
+#  
+#    error_reads <- rep(0, num_sites)
+#    error_reads[strand_plus] <- frequency_all[[i]][strand_plus,2]+frequency_all[[i]][strand_plus,4]+
+#      frequency_all[[i]][strand_plus,5]
+#    error_reads[strand_minus] <- frequency_all[[i]][strand_minus,1]+frequency_all[[i]][strand_minus,3]+
+#      frequency_all[[i]][strand_minus,5]
+#  
+#  
+#  
+#    frequency_all[[i]] <- frequency_all[[i]] %>%
+#      mutate(methylated_reads=methylated_reads)%>%
+#      mutate(unmethylated_reads=unmethylated_reads)%>%
+#      mutate(error_reads=error_reads)%>%
+#      select(methylated_reads,unmethylated_reads,error_reads)
+#  
+#    error_reads_list[[i]] <-  frequency_all[[i]]$error_reads
+#  
+#    frequency_all[[i]] <- frequency_all[[i]] %>%
+#      mutate(methylated_reads=methylated_reads)%>%
+#      mutate(unmethylated_reads=unmethylated_reads)%>%
+#      mutate(error_rate=error_reads/(methylated_reads+unmethylated_reads+error_reads))%>%
+#      select(methylated_reads,unmethylated_reads,error_rate)
+#  
+#    error_rate_list[[i]] <-  frequency_all[[i]]$error_rate
+#    frequency_all[[i]] <- frequency_all[[i]] %>% select(methylated_reads,unmethylated_reads)
+#  
+#    methylation_rate[[i]] <- frequency_all[[i]]$methylated_reads/(frequency_all[[i]]$methylated_reads+frequency_all[[i]]$unmethylated_reads)
+#  }
+#  
+#  
+#  
+#  
+#  setwd("/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/pre_process")
+#  saveRDS(error_rate_list,"error_rate_list_spliced.rds")
+#  saveRDS(frequency_all,"reads_counts_spliced.rds")
+#  saveRDS(error_reads_list,"error_reads_list_spliced.rds")
+#  saveRDS(methylation_rate,"methylation_rate_spliced.rds")
+#  
+#  
+#  ##  isoform
+#  
+#  
+#  
+#  frequency_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/origin/isoform_A_to_I.rds")
+#  
+#  
+#  testSNP_all <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/origin/SNP_all.rds")
+#  
+#  
+#  head(frequency_all[[1]])
+#  testSNP_all
+#  
+#  
+#  library(dplyr)
+#  # get the number of cell number of sites
+#  
+#  num_cell <- length(frequency_all)
+#  num_sites <- length(testSNP_all)
+#  
+#  # get the index of the + - STAND
+#  
+#  strand <- testSNP_all$transcript_strand
+#  strand_plus <- which(strand=="+")
+#  strand_minus <- which(strand=="-")
+#  
+#  error_rate_list <- list()
+#  
+#  error_reads_list <- list()
+#  methylation_rate <- list()
+#  
+#  site_length_nomatch <-  which(lapply(frequency_all, function(x) dim(x)[1])!=length(testSNP_all))
+#  
+#  
+#  for (i in 1:num_cell){
+#  
+#    # change to data frame and add strand column
+#  
+#    frequency_all[[i]] <-  data.frame(frequency_all[[i]])
+#  
+#    # get methylated reads
+#  
+#    methylated_reads <- rep(0, num_sites)
+#    methylated_reads[strand_plus] <- frequency_all[[i]][strand_plus,3]
+#    methylated_reads[strand_minus] <-frequency_all[[i]][strand_minus,4]
+#  
+#    # get unmethylated reads
+#  
+#    unmethylated_reads <- rep(0, num_sites)
+#    unmethylated_reads[strand_plus] <- frequency_all[[i]][strand_plus,1]
+#    unmethylated_reads[strand_minus] <- frequency_all[[i]][strand_minus,2]
+#  
+#  
+#  
+#    # get error reads
+#  
+#    error_reads <- rep(0, num_sites)
+#    error_reads[strand_plus] <- frequency_all[[i]][strand_plus,2]+frequency_all[[i]][strand_plus,4]+
+#      frequency_all[[i]][strand_plus,5]
+#    error_reads[strand_minus] <- frequency_all[[i]][strand_minus,1]+frequency_all[[i]][strand_minus,3]+
+#      frequency_all[[i]][strand_minus,5]
+#  
+#  
+#  
+#    frequency_all[[i]] <- frequency_all[[i]] %>%
+#      mutate(methylated_reads=methylated_reads)%>%
+#      mutate(unmethylated_reads=unmethylated_reads)%>%
+#      mutate(error_reads=error_reads)%>%
+#      select(methylated_reads,unmethylated_reads,error_reads)
+#  
+#    error_reads_list[[i]] <-  frequency_all[[i]]$error_reads
+#  
+#    frequency_all[[i]] <- frequency_all[[i]] %>%
+#      mutate(methylated_reads=methylated_reads)%>%
+#      mutate(unmethylated_reads=unmethylated_reads)%>%
+#      mutate(error_rate=error_reads/(methylated_reads+unmethylated_reads+error_reads))%>%
+#      select(methylated_reads,unmethylated_reads,error_rate)
+#  
+#    error_rate_list[[i]] <-  frequency_all[[i]]$error_rate
+#    frequency_all[[i]] <- frequency_all[[i]] %>% select(methylated_reads,unmethylated_reads)
+#  
+#    methylation_rate[[i]] <- frequency_all[[i]]$methylated_reads/(frequency_all[[i]]$methylated_reads+frequency_all[[i]]$unmethylated_reads)
+#  }
+#  
+#  
+#  
+#  
+#  setwd("/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/pre_process")
+#  saveRDS(error_rate_list,"error_rate_list_isoform.rds")
+#  saveRDS(frequency_all,"reads_counts_isoform.rds")
+#  saveRDS(error_reads_list,"error_reads_list_isoform.rds")
+#  saveRDS(methylation_rate,"methylation_rate_isoform.rds")
+
+## ----eval=FALSE---------------------------------------------------------------
+#  # calculate teh meta_error_rate for each site
+#  ## spliced
+#  
+#  rm(list = ls())
+#  gc()
+#  error_reads_list_spliced <-
+#    readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/error_reads_list_spliced.rds")
+#  
+#  error_reads_list_spliced_sum <- Reduce("+", error_reads_list_spliced)
+#  
+#  reads_counts_spliced <-
+#    readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_spliced.rds")
+#  
+#  summed_vectors_list <- lapply(reads_counts_spliced, function(df) rowSums(df))
+#  
+#  reads_counts_spliced_sum <- Reduce("+", summed_vectors_list)
+#  
+#  error_rate_meta_spliced <- error_reads_list_spliced_sum/
+#    (error_reads_list_spliced_sum+reads_counts_spliced_sum)
+#  
+#  
+#  saveRDS(error_rate_meta_spliced,"/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/error_rate_meta_spliced.rds")
+#  ## pre
+#  
+#  
+#  rm(list = ls())
+#  gc()
+#  error_reads_list_pre <-
+#    readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/error_reads_list_pre.rds")
+#  
+#  error_reads_list_pre_sum <- Reduce("+", error_reads_list_pre)
+#  
+#  reads_counts_pre <-
+#    readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_pre.rds")
+#  
+#  summed_vectors_list <- lapply(reads_counts_pre, function(df) rowSums(df))
+#  
+#  reads_counts_pre_sum <- Reduce("+", summed_vectors_list)
+#  
+#  error_rate_meta_pre <- error_reads_list_pre_sum/
+#    (error_reads_list_pre_sum+reads_counts_pre_sum)
+#  
+#  saveRDS(error_rate_meta_pre,"/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/error_rate_meta_pre.rds")
+#  
+
+## ----eval=FALSE---------------------------------------------------------------
+#  # Load necessary library
+#  library(VeloRM)
+#  library(ggplot2)
+#  
+#  # Read metadata
+#  error_rate_meta_spliced <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/error_rate_meta_spliced.rds")
+#  error_rate_meta_pre <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/error_rate_meta_pre.rds")
+#  index_error <- intersect(which(error_rate_meta_spliced <= 0.01), which(error_rate_meta_pre <= 0.01))
+#  
+#  
+#  
+#  # Read counts
+#  reads_counts_spliced<- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_spliced.rds")
+#  
+#  # Process spliced data
+#  spliced_meth_test <- as.data.frame(lapply(reads_counts_spliced, function(df) df[["methylated_reads"]]))
+#  spliced_unmeth_test <- as.data.frame(lapply(reads_counts_spliced, function(df) df[["unmethylated_reads"]]))
+#  
+#  
+#  reads_counts_pre<- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_pre.rds")
+#  
+#  
+#  # Process spliced data
+#  pre_meth_test <- as.data.frame(lapply(reads_counts_pre, function(df) df[["methylated_reads"]]))
+#  pre_unmeth_test <- as.data.frame(lapply(reads_counts_pre, function(df) df[["unmethylated_reads"]]))
+#  
+#  
+#  # Set row names
+#  rownames(spliced_meth_test) <- rownames(spliced_unmeth_test) <- paste0("site_", 1:dim(spliced_unmeth_test)[1])
+#  
+#  rownames(pre_meth_test) <- rownames(pre_unmeth_test)  <- paste0("site_", 1:dim(pre_unmeth_test)[1])
+#  
+#  # Calculate spliced and pre-mRNA test matrices
+#  spliced_test <- spliced_meth_test+spliced_unmeth_test
+#  
+#  
+#  pre_test <- pre_meth_test + pre_unmeth_test
+#  
+#  #discard the cell have lower reads
+#  index_cell_discard_spliced <- which(colSums(spliced_test)<=200)
+#  index_cell_discard_pre <- which(colSums(pre_test)<=200)
+#  
+#  spliced_test_discarded <- spliced_test[,-union(index_cell_discard_spliced,index_cell_discard_pre)]
+#  pre_test_discarded <- pre_test[,-union(index_cell_discard_spliced,index_cell_discard_pre)]
+#  
+#  
+#  
+#  
+#  index <- index_error
+#  
+#  spliced_meth_test_processed <- spliced_meth_test[index,-union(index_cell_discard_spliced,index_cell_discard_pre)]
+#  spliced_unmeth_test_processed <- spliced_unmeth_test[index,-union(index_cell_discard_spliced,index_cell_discard_pre)]
+#  pre_meth_test_processed <- pre_meth_test[index,-union(index_cell_discard_spliced,index_cell_discard_pre)]
+#  pre_unmeth_test_processed <- pre_unmeth_test[index,-union(index_cell_discard_spliced,index_cell_discard_pre)]
+#  
+#  
+#  saveRDS(union(index_cell_discard_spliced,index_cell_discard_pre),"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/index_cell_discard.rds")
+#  saveRDS(index_error,"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/index_error.rds")
+#  saveRDS(index,"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/index.rds")
+#  
+#  
+#  reads_counts_isoform <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_isoform.rds")
+#  reads_counts_isoform <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_isoform.rds")
+#  
+#  # Process pre-mRNA data
+#  isoform_meth_test <- as.data.frame(lapply(reads_counts_isoform, function(df) df[["methylated_reads"]]))
+#  isoform_unmeth_test <- as.data.frame(lapply(reads_counts_isoform, function(df) df[["unmethylated_reads"]]))
+#  
+#  
+#  
+#  rownames(isoform_meth_test) <- rownames(isoform_unmeth_test) <-  paste0("site_", 1:dim(isoform_unmeth_test)[1])
+#  
+#  isoform_meth_test_processed <- isoform_meth_test[index,-union(index_cell_discard_spliced,index_cell_discard_pre)]
+#  isoform_unmeth_test_processed <- isoform_unmeth_test[index,-union(index_cell_discard_spliced,index_cell_discard_pre)]
+#  
+#  test.list <- list(spliced_meth_test_processed,spliced_unmeth_test_processed,pre_meth_test_processed,pre_unmeth_test_processed,
+#                    isoform_meth_test_processed,isoform_unmeth_test_processed)
+#  control.list <- NULL
+#  
+#  res_preprocess_0.5 <- methylation.sites.preprocess(test.list,control.list,0.5)
+#  res_preprocess <- methylation.sites.preprocess(test.list,control.list)
+#  
+#  saveRDS(test.list,"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/test.list.rds")
+#  saveRDS(control.list,"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/control.list.rds")
+#  saveRDS(res_preprocess_0.5,"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/res_preprocess_0.5.rds")
+#  saveRDS(res_preprocess,"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/res_preprocess.rds")
+#  #
+#  SNP <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/SNP_all.rds")
+#  SNP_index <- SNP[index]
+#  saveRDS(SNP_index,"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/SNP_1159.rds")
+
+## ----eval=FALSE---------------------------------------------------------------
+#  # Load input data
+#  test.list <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/test.list.rds")
+#  
+#  # Extract different parts of the data
+#  spliced.meth.test <- test.list[[1]]  # Methylated spliced data
+#  spliced.unmeth.test <- test.list[[2]]  # Unmethylated spliced data
+#  unspliced.meth.test <- test.list[[3]]  # Methylated unspliced data
+#  unspliced.unmeth.test <- test.list[[4]]  # Unmethylated unspliced data
+#  
+#  # Set random seed for reproducibility
+#  set.seed(42)
+#  
+#  # Record start time
+#  start_time <- Sys.time()
+#  
+#  # Load DESeq2 package
+#  library(DESeq2)
+#  
+#  # Define DESeq2 differential expression analysis function
+#  DESeq2_test <- function(meth_control, meth_test, unmeth_control, unmeth_test) {
+#    # Convert input data to data frames
+#    meth_control <- data.frame(meth_control)
+#    meth_test <- data.frame(meth_test)
+#    unmeth_control <- data.frame(unmeth_control)
+#    unmeth_test <- data.frame(unmeth_test)
+#  
+#    # Function to calculate size factor
+#    sizeFactor <- function(data) {
+#      # Ensure data is not less than 0
+#      data <- as.matrix(data)
+#  
+#      # Log-transform the data
+#      log_data <- log(data)
+#      log_data[is.infinite(log_data)] <- NA
+#      log_mean <- rowMeans(log_data, na.rm = TRUE)
+#      log_s <- log_data - log_mean
+#  
+#      # Calculate size factor
+#      s_size <- exp(apply(log_s, 2, function(x) median(x, na.rm = TRUE)))
+#      return(s_size)
+#    }
+#  
+#    # Calculate size factors for spliced and unspliced data
+#    spliced_total <- meth_control + unmeth_control
+#    unspliced_total <- meth_test + unmeth_test
+#  
+#    spliced_size_factor <- sizeFactor(spliced_total)
+#    unspliced_size_factor <- sizeFactor(unspliced_total)
+#  
+#    # Get the number of control and test samples
+#    num_control <- dim(unmeth_control)[2]
+#    num_test <- dim(unmeth_test)[2]
+#  
+#    # Combine all data
+#    counts <- cbind(meth_control, meth_test, unmeth_control, unmeth_test)
+#  
+#    # Design the experiment matrix
+#    design = data.frame(
+#      Trt = rep(c(rep("control", num_control), rep("test", num_test)), 2),
+#      Meth = c(rep("meth", (num_control + num_test)), rep("unmeth", (num_control + num_test)))
+#    )
+#  
+#    # Define the model
+#    model = ~ Meth + Trt + Meth:Trt
+#  
+#    # Create DESeqDataSet object
+#    dds <- DESeqDataSetFromMatrix(countData = counts,
+#                                  colData = design,
+#                                  design = model)
+#  
+#    # Set size factors
+#    sizeFactors(dds) = rep(c(spliced_size_factor, unspliced_size_factor), 2)
+#  
+#    # Perform differential expression analysis
+#    dds <- DESeq(dds, test = "Wald")
+#  
+#    # Extract results
+#    res = DESeq2::results(dds, name = "Methunmeth.Trttest", cooksCutoff = FALSE)
+#  
+#    return(res)
+#  }
+#  
+#  # Call the function to perform differential expression analysis
+#  result <- DESeq2_test(spliced.meth.test, unspliced.meth.test, spliced.unmeth.test, unspliced.unmeth.test)
+#  
+#  # Record end time
+#  end_time <- Sys.time()
+#  
+#  # Print the runtime
+#  print(end_time - start_time)
+#  
+#  
+#  # Save the results
+#  saveRDS(result, "/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/res_DESeq2.rds")
+
+## ----warning=FALSE------------------------------------------------------------
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+counts_data <- read.csv("D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/bam_read_counts.csv", 
+                       header = TRUE,  # Assumes first row contains column names
+                       stringsAsFactors = FALSE)  # Prevents automatic conversion to factors
+
+# View the first few rows
+
+counts_data_sum <- apply(counts_data,1,function(x) sum(as.numeric(x[2:4])))
+isoform_prop <- as.numeric(counts_data[,2])/counts_data_sum
+spliced_prop <- as.numeric(counts_data[,3])/counts_data_sum
+pre_prop <- as.numeric(counts_data[,4])/counts_data_sum
+
+df <- data.frame(
+  `mature RNA` = spliced_prop,
+  `pre RNA` = pre_prop,
+  `ambiguous` = isoform_prop,
+  check.names = FALSE
+)
+df_long <- pivot_longer(df, cols = everything(), 
+                       names_to = "Type", 
+                       values_to = "Probability")
+
+box_plot <- ggplot(df_long, aes(x = "", y = Probability, fill = Type)) +  
+    geom_violin(alpha = 0.6, width = 0.7) +
+    geom_boxplot(width = 0.2, alpha = 0.8, 
+                 outlier.shape = NA,
+                 coef = 0) + 
+    facet_wrap(~Type, scales = "free_y", ncol = 3) +  
+    labs(
+        title = NULL,
+        x = NULL,  
+        y = "Probability"
+    ) +
+    # Use theme_gray() which is the default ggplot2 theme
+    theme_gray(base_size = 14)  +
+    scale_fill_manual(
+        values = c("mature RNA" = "#FF9999",  
+                   "pre RNA" = "#99CCFF",     
+                   "ambiguous" = "#99CC99"),   
+        breaks = c("mature RNA", "pre RNA", "ambiguous") 
+    )+
+  theme(
+    legend.position = "none"
+  )
+
+box_plot
+
+# Assuming plot_data is defined as you provided
+plot_data <- data.frame(
+  category = c("Ambiguous","Spliced", "Unspliced"),
+  proportion = c(sum(counts_data[,2]),sum(counts_data[,3]), sum(counts_data[,4]))
+)
+
+# Create pie chart
+pie_chart <- ggplot(plot_data, aes(x = "", y = proportion, fill = category)) +
+  geom_bar(stat = "identity", width = 1, color = "white") + # white border between slices
+  coord_polar(theta = "y") + # convert barplot to pie
+  geom_text(aes(label = paste0(round(proportion / sum(proportion) * 100, 1), "%")),
+            position = position_stack(vjust = 0.5), size = 5) + # add percentage labels
+  labs(title = NULL, x = NULL, y = NULL) +
+  theme_void() + # remove background, axes, grid
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5))
+
+pie_chart
+
+res_preprocess <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/res_preprocess.rds")
+spliced_index <- which(res_preprocess[["spliced_methylation_M_value_meta"]]>=1)
+unspliced_index <- which(res_preprocess[["unspliced_methylation_M_value_meta"]]>=1)
+
+
+spliced_index_l <- length(spliced_index)
+unspliced_index_l <- length(unspliced_index)
+intersect_l <- length(intersect(spliced_index,unspliced_index))
+
+library(VennDiagram)
+grid.newpage()
+venn <-draw.pairwise.venn(
+  area1 = spliced_index_l,
+  area2 = unspliced_index_l,
+  cross.area = intersect_l,
+  category = c("Spliced", "Unspliced"),
+  fill = c("#E74C3C","skyblue"),
+  alpha = 0.5,
+  lty = "blank",
+  cex = 2,
+  cat.cex = 1.5
+)
+
+
+
+## ----eval=FALSE---------------------------------------------------------------
+#  library(GenomicRanges)
+#  library(rtracklayer)
+#  library(dplyr)
+#  library(tidyr)
+#  
+#  snp <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/SNP_1019.rds")
+#  snp_pos <- snp@ranges@start
+#  snp_chr_length <- snp@seqnames@lengths
+#  snp_chr_seq <- snp@seqnames@values
+#  snp_chr <- as.character(rep(snp_chr_seq,snp_chr_length))
+#  snp_strand <- snp@elementMetadata@listData[["transcript_strand"]]
+#  snp_data <- as.data.frame(cbind(snp_chr,snp_pos,snp_strand))
+#  snp_data$snp_pos <- as.numeric(snp_data$snp_pos)
+#  
+#  
+#  
+#  
+#  # Read the GTF file from Ensembl
+#  gtf_file <- "D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/gencode.vM33.annotation.gtf"
+#  gtf_data <- import(gtf_file)
+#  
+#  # Filter for exons
+#  exons <- gtf_data[gtf_data$type == "exon"]
+#  
+#  # Convert to data frame
+#  exons_df <- data.frame(
+#  chr = as.character(seqnames(exons)),
+#  start = start(exons),
+#  end = end(exons),
+#  strand = as.character(strand(exons)),
+#  gene_id = mcols(exons)$gene_id,
+#  transcript_id = mcols(exons)$transcript_id
+#  )
+#  
+#  # Sort exons by transcript and position
+#  exons_df <- exons_df %>%
+#  arrange(transcript_id, chr, start)
+#  
+#  # Extract splicing junctions using intron boundaries
+#  junctions <- exons_df %>%
+#  group_by(transcript_id) %>%
+#  arrange(if_else(strand == "+", start, -start)) %>%  # Sort based on strand
+#  mutate(
+#    donor_site = end,                # End of the upstream exon
+#    acceptor_site = lead(start)      # Start of the downstream exon
+#  ) %>%
+#  filter(!is.na(acceptor_site)) %>%   # Remove the last exon (no downstream exon)
+#  ungroup() %>%
+#  select(chr, donor_site, acceptor_site, gene_id, transcript_id, strand)
+#  
+#  
+#  junctions_unique <- junctions %>%
+#   distinct(chr, donor_site, acceptor_site, .keep_all = TRUE)
+#  
+#  
+#  
+#  junctions_long <- junctions_unique %>%
+#   pivot_longer(cols = c(donor_site, acceptor_site),
+#                names_to = "site_type",
+#                values_to = "site_position") %>%
+#   select(chr, site_position, site_type, gene_id, transcript_id, strand)
+#  
+#  
+#  
+#  # Calculate distance from each SNP to the nearest junction (matching chr and strand)
+#  snp_with_distance <- snp_data %>%
+#   rowwise() %>%
+#   mutate(
+#     nearest_junction_distance = min(
+#       abs(junctions_long$site_position[junctions_long$chr == snp_chr & junctions_long$strand == snp_strand] - snp_pos),
+#       na.rm = TRUE
+#     )
+#   )
+#  
+#  
+#  # get normal chr
+#  standard_chromosomes <- paste0("chr", c(1:22, "X", "Y"))
+#  
+#  # get the exon with the normal chr
+#  exons_filtered <- exons[seqnames(exons) %in% standard_chromosomes]
+#  
+#  
+#  
+#  # calculate the distance
+#  exon_lengths <- width(exons_filtered)
+#  
+#  # calculate the prob
+#  prob_weights <- exon_lengths / sum(exon_lengths)
+#  
+#  # random sample
+#  set.seed(123)
+#  
+#  
+#  #random_distances_list <- list()
+#  
+#  #for (i in 1:10){
+#   selected_exons <- sample(seq_along(exons_filtered), size = 1019, replace = TRUE, prob = prob_weights)
+#   # choose the site in the select the exons
+#   random_positions <- start(exons[selected_exons]) +
+#     floor(runif(1019, min = 0, max = exon_lengths[selected_exons]))
+#  
+#   # create the data frame
+#   random_sites <- data.frame(
+#     chr = as.character(seqnames(exons[selected_exons])),
+#     position = random_positions,
+#     strand = as.character(strand(exons[selected_exons]))
+#   )
+#  
+#  
+#   # Calculate distance from each SNP to the nearest junction (matching chr and strand)
+#   random_sites_with_distance <- random_sites %>%
+#     rowwise() %>%
+#     mutate(
+#       nearest_junction_distance = min(
+#         abs(junctions_long$site_position[junctions_long$chr == chr & junctions_long$strand == strand] - position),
+#         na.rm = TRUE
+#       )
+#     )
+#   random_distances_list  <- random_sites_with_distance$nearest_junction_distance
+#  #}
+#  
+#  
+#  
+#  random_distances_df <- data.frame(
+#   distance = random_distances_list,
+#   group = "Random"
+#  )
+#  
+#  # merge the data frame
+#  real_distances_df <- data.frame(
+#   distance = snp_with_distance$nearest_junction_distance,
+#   group = "Real"
+#  )
+#  
+#  
+#  all_distances_df <- bind_rows(random_distances_df, real_distances_df)
+#  group_order <- c("Real","Random")
+#  all_distances_df$group <- factor(all_distances_df$group, levels = group_order)
+#  library(ggplot2)
+#  #  Boxplot
+#  plot <- ggplot(all_distances_df, aes(x = group, y = log10(distance+1), fill = group)) +
+#   geom_violin(trim = FALSE, alpha = 0.5) +
+#   geom_boxplot(width = 0.1, outlier.shape = NA)+
+#   scale_fill_manual(values = c("red",rep("lightblue", 10))) +
+#   labs(title = NULL,
+#        x = NULL,
+#        y = "log10(Distance (bp)+1)") +
+#   theme_minimal() +
+#   theme(
+#         plot.title = element_text(hjust = 0.5),
+#         legend.position = "none")+coord_cartesian(ylim = c(0,7))
+#  
+#  
+#  saveRDS(all_distances_df,"D:/data/VeloRM_data/RNA-Seq_A-to-I/results/splicing_junction_analysis/all_distances_df.rds")
+#  
+#  
+
+## ----warning=FALSE------------------------------------------------------------
+ all_distances_df <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/results/splicing_junction_analysis/all_distances_df.rds")
+
+library(ggplot2)
+#  Boxplot
+plot <- ggplot(all_distances_df, aes(x = group, y = log10(distance+1), fill = group)) +
+ geom_violin(trim = FALSE, alpha = 0.5) +
+ geom_boxplot(width = 0.1, outlier.shape = NA)+
+ scale_fill_manual(values = c("red",rep("lightblue", 10))) +
+ labs(title = NULL,
+      x = NULL,
+      y = "log10(Distance (bp)+1)") +
+ theme_grey() +
+ theme(plot.title = element_text(hjust = 0.5),
+       legend.position = "none")+coord_cartesian(ylim = c(0,7))
+plot
+
+## ----warning=FALSE------------------------------------------------------------
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+res_DESeq2 <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/res_DESeq2.rds")
+
+
+log2FC <-res_DESeq2@listData[["log2FoldChange"]]
+pvals <- res_DESeq2@listData[["pvalue"]]
+
+plot_data <- data.frame(log2FC = log2FC, 
+                       pvalue = pvals,
+                       neg_log10_p = -log10(pvals))
+
+
+volcano_plot_DESeq2 <- ggplot(plot_data, aes(x = log2FC, y = neg_log10_p)) +
+  # Add light gray background for -1 < log2FC < 1 (non-significant FC region)
+  annotate("rect", xmin = -1, xmax = 1, ymin = 0, ymax = 30, 
+           fill = "gray90", alpha = 0.3) +
+  
+  # Color points based on significance and log2FC:
+  # - Red: log2FC > 1 & p < 0.05 (significantly up-regulated)
+  # - Blue: log2FC < -1 & p < 0.05 (significantly down-regulated)
+  # - Gray: Not significant or |log2FC| ≤ 1
+  geom_point(aes(color = case_when(
+    log2FC > 1 & pvalue < 0.05 ~ "Unspliced",
+    log2FC < -1 & pvalue < 0.05 ~ "Spliced",
+    TRUE ~ "Not significant"
+  )), alpha = 0.3) +
+  
+  # Manual color scale (red, blue, gray)
+  scale_color_manual(
+    values = c(
+      "Spliced" = "red",
+      "Unspliced" = "blue",
+      "Not significant" = "gray50"
+    ),
+    name = "Regulation"  # Legend title
+  ) +
+  
+  # Add dashed lines for thresholds:
+  # - Vertical: log2FC = ±1
+  # - Horizontal: p-value = 0.05 (-log10(0.05) ≈ 1.3)
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "black") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") +
+  
+  # Axis labels and theme
+  labs(
+    x = "log2 Fold Change", 
+    y = "-log10(p-value)",
+    title = NULL
+  ) +
+   theme_grey() +
+   # Set axis limits (zoomed-in view)
+   coord_cartesian(ylim = c(0, 30),xlim = c(-4, 4))
+volcano_plot_DESeq2
+
+n_unspliced <- length(which(log2FC >= 1 & pvals <= 0.05))  
+n_spliced <- length(which(log2FC <= -1 & pvals <= 0.05))  
+n_nonsig <- sum(pvals > 0.05 | (log2FC > -1 & log2FC < 1))
+
+total <- n_unspliced + n_spliced + n_nonsig
+Percentage <- round(c(n_unspliced, n_spliced, n_nonsig) / total * 100, 1)
+
+df <- data.frame(
+  Category = c("Unspliced", "Spliced", "Insignificant"),
+  Count = c(n_unspliced, n_spliced, n_nonsig)
+)
+
+
+
+pie_chart_DESeq2 <- ggplot(df, aes(x = "", y = Count, fill = Category)) +
+  geom_bar(stat = "identity", width = 1, color = "white",alpha=0.6) +
+  coord_polar("y", start = 0) + 
+  geom_text(aes(label = paste0(Count, "\n(", Percentage, "%)")), 
+            position = position_stack(vjust = 0.5), size = 5) +
+  scale_fill_manual(values = c("Unspliced" = "blue", "Spliced" = "red","Insignificant"="gray50")) +
+  labs(
+    title = NULL,
+    x = NULL,
+    y = NULL
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "none"  
+  )
+
+pie_chart_DESeq2
+
+## ----warning=FALSE------------------------------------------------------------
+
+# Load input data
+test.list <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/test.list.rds")
+
+# Extract different parts of the data
+spliced.meth.test <- test.list[[1]]  # Methylated spliced data
+spliced.unmeth.test <- test.list[[2]]  # Unmethylated spliced data
+unspliced.meth.test <- test.list[[3]]  # Methylated unspliced data
+unspliced.unmeth.test <- test.list[[4]]  # Unmethylated unspliced data
+isoform.meth.test <- test.list[[5]]  # Methylated isoform data
+isoform.unmeth.test <- test.list[[6]]  # Unmethylated isoform data
+
+
+
+
+
+spliced.meth.sum.cell <- apply(spliced.meth.test,2,sum)#,apply(spliced.meth.control,2,sum))
+spliced.unmeth.sum.cell <- apply(spliced.unmeth.test,2,sum)#,apply(spliced.unmeth.control,2,sum))
+unspliced.meth.sum.cell <- apply(unspliced.meth.test,2,sum)#,apply(unspliced.meth.control,2,sum))
+unspliced.unmeth.sum.cell <- apply(unspliced.unmeth.test,2,sum)#,apply(unspliced.unmeth.control,2,sum))
+isoform.meth.sum.cell <- apply(isoform.meth.test,2,sum)#,apply(unspliced.meth.control,2,sum))
+isoform.unmeth.sum.cell <- apply(isoform.unmeth.test,2,sum)#,apply(unspliced.unmeth.control,2,sum))
+
+spliced.sum.cell <- spliced.meth.sum.cell + spliced.unmeth.sum.cell
+unspliced.sum.cell <- unspliced.meth.sum.cell + unspliced.unmeth.sum.cell
+isoform.sum.cell <- isoform.meth.sum.cell + isoform.unmeth.sum.cell
+
+spliced.prob.cell <- spliced.sum.cell/(spliced.sum.cell+unspliced.sum.cell+isoform.sum.cell)
+unspliced.prob.cell <- unspliced.sum.cell/(spliced.sum.cell+unspliced.sum.cell+isoform.sum.cell)
+isoform.prob.cell <- isoform.sum.cell/(spliced.sum.cell+unspliced.sum.cell+isoform.sum.cell)
+
+
+spliced.cell.prob <- spliced.meth.sum.cell/(spliced.unmeth.sum.cell+spliced.meth.sum.cell)
+unspliced.cell.prob <- unspliced.meth.sum.cell/(unspliced.unmeth.sum.cell+unspliced.meth.sum.cell)
+
+df <- data.frame(
+  Probability = c(spliced.cell.prob, unspliced.cell.prob),
+  Type = rep(c("mature RNA", "pre RNA"), 
+             c(length(spliced.cell.prob), length(unspliced.cell.prob)))
+)
+
+# Create the density plot
+ggplot(df, aes(x = Probability, fill = Type)) +
+  geom_density(alpha = 0.3) +
+  labs(title = "Density Plot of Methylation Probabilities",
+       x = "Methylation Probability",
+       y = "Density") +
+  theme_grey()+
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14),
+    legend.position = c(0.8, 0.7),
+    legend.background = element_blank())+coord_cartesian(xlim=c(0.2,0.8))
+
+## ----warning=FALSE------------------------------------------------------------
+library(TxDb.Mmusculus.UCSC.mm39.knownGene)
+library(MetaTX)
+library(ggplot2)
+library(dplyr)
+res_preprocess <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/res_preprocess.rds")
+spliced_methylation_M_value_meta <- res_preprocess$spliced_methylation_M_value_meta
+unspliced_methylation_M_value_meta <- res_preprocess$unspliced_methylation_M_value_meta
+
+
+
+index_pre_high_spliced_low <- which(unspliced_methylation_M_value_meta-spliced_methylation_M_value_meta>=1)
+index_spliced_high_pre_low <- which(spliced_methylation_M_value_meta-unspliced_methylation_M_value_meta>=1)
+
+## ----warning=FALSE------------------------------------------------------------
+intersect_pre_dominate <-index_pre_high_spliced_low
+
+intersect_spliced_dominate <-index_spliced_high_pre_low
+
+reads_counts_isoform <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_isoform.rds")
+reads_counts_pre <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_pre.rds")
+reads_counts_spliced <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_spliced.rds")
+reads_counts_meth <- as.data.frame(lapply(reads_counts_isoform,function(x)x[["methylated_reads"]]))+
+  as.data.frame(lapply(reads_counts_pre,function(x)x[["methylated_reads"]]))+
+  as.data.frame(lapply(reads_counts_spliced,function(x)x[["methylated_reads"]]))
+
+reads_counts_unmeth <- as.data.frame(lapply(reads_counts_isoform,function(x)x[["unmethylated_reads"]]))+
+  as.data.frame(lapply(reads_counts_pre,function(x)x[["unmethylated_reads"]]))+
+  as.data.frame(lapply(reads_counts_spliced,function(x)x[["unmethylated_reads"]]))
+
+reads_counts_M_overall <- ((rowSums(reads_counts_meth)+1e-7)/(rowSums(reads_counts_unmeth)+rowSums(reads_counts_meth)+1e-7))
+
+
+index_not_dominate <- order(reads_counts_M_overall,decreasing = TRUE)[1:500]
+
+# metaTX
+
+SNP_all <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/SNP_all.rds")
+SNP_1019 <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/SNP_1019.rds")
+txdb <- TxDb.Mmusculus.UCSC.mm39.knownGene
+
+
+SNP_intersect_pre_dominate <- SNP_1019[intersect_pre_dominate]
+SNP_intersect_spliced_dominate <- SNP_1019[intersect_spliced_dominate]
+SNP_intersect_not_dominate <- SNP_all[index_not_dominate]
+SNP_background <- SNP_1019
+
+SNP_to_exclude <- c(SNP_intersect_pre_dominate, SNP_intersect_spliced_dominate)
+
+library(GenomicRanges)
+hits <- findOverlaps(SNP_intersect_not_dominate, SNP_to_exclude)
+
+if(length(hits)!=0){
+  SNP_intersect_not_dominate<- SNP_intersect_not_dominate[-queryHits(hits)]
+}
+
+remap_results_pre_dominate <- remapCoord(features = SNP_1019[intersect_pre_dominate], txdb = txdb)
+remap_results_spliced_dominate <- remapCoord(features = SNP_1019[intersect_spliced_dominate], txdb = txdb)
+remap_results_not_dominate <- remapCoord(features = SNP_intersect_not_dominate, txdb = txdb)
+remap_results_background <- remapCoord(features = SNP_background, txdb = txdb)
+
+
+# Step 2: Create plots for each subset
+plot_pre_dominate <- directPlot(remap_results_pre_dominate)
+plot_spliced_dominate <- directPlot(remap_results_spliced_dominate)
+plot_not_dominate <- directPlot(remap_results_not_dominate)
+plot_background <- directPlot(remap_results_background)
+
+data_a <- ggplot_build(plot_pre_dominate)$data[[1]] %>% mutate(Group = "Precursor")
+data_b <- ggplot_build(plot_spliced_dominate)$data[[1]] %>% mutate(Group = "Mature")
+data_c <- ggplot_build(plot_not_dominate)$data[[1]] %>% mutate(Group = "Other")
+data_d <- ggplot_build(plot_background)$data[[1]] %>% mutate(Group = "Real")
+
+# Combine all datasets
+combined_data <- bind_rows(data_a, data_b, data_c, data_d)#, data_intersect)
+
+region_rects <- data.frame(
+    xmin = c(0.2, 0.4, 0.6),  # Start positions of each region
+    xmax = c(0.4, 0.6, 0.8),  # End positions of each region
+    ymin = min(combined_data$y, na.rm = TRUE) - 0.1,  # Adjust below data range
+    ymax = min(combined_data$y, na.rm = TRUE) - 0.05, # Slightly higher to make room
+    Region = c("5' UTR", "CDS", "3' UTR")
+)
+
+# Calculate the height of 5' UTR and 3' UTR regions
+utr_height <- region_rects$ymax[region_rects$Region == "5' UTR"] - region_rects$ymin[region_rects$Region == "5' UTR"]
+
+# Increase the height of CDS region by 20% (can be adjusted as needed)
+cds_height <- utr_height * 2 # Increase height by 30%
+
+# Set ymin and ymax for CDS so that it is centered with respect to 5' UTR and 3' UTR
+region_rects$ymin[region_rects$Region == "CDS"] <- region_rects$ymin[region_rects$Region == "CDS"] - 0.5*utr_height  # Decrease ymin for CDS
+region_rects$ymax[region_rects$Region == "CDS"] <- region_rects$ymin[region_rects$Region == "CDS"] + cds_height  # Increase ymax for CDS
+
+
+compare_metaTX_plot <-ggplot(combined_data, aes(x = x, y = y, color = Group))+
+  geom_line(size=1)+
+    # Add region highlights using geom_rect, with consistent positioning across all facets
+    geom_rect(data = region_rects, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = Region),
+              inherit.aes = FALSE, color = "black", alpha = 0.4, 
+              linewidth = 0.5) +  # Default linewidth for all regions
+    # Set fill for CDS region to grey (lighter than black)
+    geom_rect(data = subset(region_rects, Region == "CDS"), aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+              inherit.aes = FALSE, fill = "grey", color = "black", alpha = 0.4, linewidth = 0.5) +  # Grey fill for CDS
+    # Adjust 5' UTR and 3' UTR fills to a very dark grey, closer to black
+    geom_rect(data = subset(region_rects, Region != "CDS"), aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,
+                                                                fill = factor(Region, levels = c("5' UTR", "3' UTR"))), 
+              inherit.aes = FALSE, color = "black", alpha = 0.3, linewidth = 0.5) + 
+    scale_fill_manual(values = c("5' UTR" = grey(0.15),  # Very dark grey for 5' UTR, closer to black
+                                "CDS" = "grey",           # Grey for CDS
+                                "3' UTR" = grey(0.15))) +  # Very dark grey for 3' UTR
+    # Adjust y position for the text annotations to place them above the rectangles
+    geom_text(data = region_rects, aes(x = (xmin + xmax) / 2, y = ymax - 0.5, label = Region),
+              inherit.aes = FALSE, color = "black", size = 3, hjust = 0.5) +
+    # Remove Region fill legend
+    guides(fill = "none")+scale_color_manual(values = c(
+  "Other" = "#00ba38",      
+  "Mature" = "#619cff",     
+  "Precursor" = "#F8766d" ,
+  "Real" = "#4D4D4D"  
+),name = "Higher on")+theme_grey()+
+  theme(
+    legend.position = c(0.2, 0.7) ,legend.background = element_blank() )+xlab(NULL)+ylab(NULL)
+
+compare_metaTX_plot
+
+## ----warning=FALSE------------------------------------------------------------
+index_meth_only_detect_pre <-  which(res_preprocess[["vg.test"]] %in% res_preprocess[["index"]][["methylation only occurs at unspliced RNA"]])
+
+index_meth_only_detect_spliced <-  which(res_preprocess[["vg.test"]] %in%res_preprocess[["index"]][["methylation only occurs at spliced RNA"]])
+
+# only detect at spliced
+index_meth_only_detect_spliced_int <-  intersect(index_meth_only_detect_spliced,intersect_spliced_dominate)
+SNP_1019[index_meth_only_detect_spliced_int]
+
+
+
+library(biomaRt)
+
+# Ensembl (Mouse)
+ensembl <- useEnsembl(biomart = "genes", dataset = "mmusculus_gene_ensembl")
+
+# ENST 
+transcript_ids <- SNP_1019[index_meth_only_detect_spliced_int]$transcript_overlapped
+
+# clean
+transcript_ids_clean <- gsub("\\..*", "", transcript_ids)
+
+# find
+transcript_info <- getBM(
+  attributes = c("ensembl_transcript_id", "ensembl_gene_id", "external_gene_name", 
+                 "chromosome_name", "start_position", "end_position", "strand"),
+  filters = "ensembl_transcript_id",
+  values = transcript_ids_clean,
+  mart = ensembl
+)
+
+idx <- match(transcript_ids_clean, transcript_info$ensembl_transcript_id)
+transcript_info_ordered <- transcript_info[idx, ]
+transcript_info_ordered <-transcript_info_ordered [,c(4,3,7)]
+transcript_info_ordered$position <- SNP_1019[index_meth_only_detect_spliced_int]@ranges@start
+transcript_info_ordered$position <- transcript_info_ordered$position-transcript_info_ordered$strand
+
+
+transcript_info_ordered$meta_M <- 
+spliced_methylation_M_value_meta[index_meth_only_detect_spliced_int]-unspliced_methylation_M_value_meta[index_meth_only_detect_spliced_int]
+
+transcript_info_ordered_spliced <-transcript_info_ordered
+
+# only detect at pre
+index_meth_only_detect_pre_int <- intersect(index_meth_only_detect_pre,intersect_pre_dominate)
+SNP_1019[index_meth_only_detect_pre_int]
+
+
+# ENST 
+transcript_ids <- SNP_1019[index_meth_only_detect_pre_int]$transcript_overlapped
+
+# clean
+transcript_ids_clean <- gsub("\\..*", "", transcript_ids)
+
+# find
+transcript_info <- getBM(
+  attributes = c("ensembl_transcript_id", "ensembl_gene_id", "external_gene_name", 
+                 "chromosome_name", "start_position", "end_position", "strand"),
+  filters = "ensembl_transcript_id",
+  values = transcript_ids_clean,
+  mart = ensembl
+)
+
+idx <- match(transcript_ids_clean, transcript_info$ensembl_transcript_id)
+transcript_info_ordered <- transcript_info[idx, ]
+transcript_info_ordered <-transcript_info_ordered [,c(4,3,7)]
+transcript_info_ordered$position <- SNP_1019[index_meth_only_detect_pre_int]@ranges@start
+transcript_info_ordered$position <- transcript_info_ordered$position-transcript_info_ordered$strand
+
+
+transcript_info_ordered$meta_M <- 
+unspliced_methylation_M_value_meta[index_meth_only_detect_pre_int]-spliced_methylation_M_value_meta[index_meth_only_detect_pre_int]
+
+transcript_info_ordered_pre <-transcript_info_ordered
+
+
+## ----warning=FALSE------------------------------------------------------------
+library(ggplot2)
+res_preprocess <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/res_preprocess.rds")
+# the input data
+test.list <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/test.list.rds")
+control.list <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/control.list.rds")
+
+
+spliced.meth.test <- test.list[[1]]
+spliced.unmeth.test <- test.list[[2]]
+unspliced.meth.test <- test.list[[3]]
+unspliced.unmeth.test <- test.list[[4]]
+
+kCells = 1; deltaT =1; kSites = 1
+library(VeloRM)
+# calculate the emat_size and nmat_size
+
+emat_size <- colSums(spliced.meth.test + spliced.unmeth.test)
+nmat_size <- colSums(unspliced.meth.test + unspliced.unmeth.test)
+
+res <- methylation.site.relative.velocity.estimates(res_preprocess$test, res_preprocess$control,
+                                                    kCells = kCells, deltaT = deltaT, kSites = kSites, 
+                                                    fit.quantile = 0.05, n.cores = 1, emat.size = emat_size, 
+                                                    nmat.size = nmat_size)
+
+saveRDS(res, "D:/data/VeloRM_data/RNA-Seq_A-to-I/results/res_A_to_I_velocity.rds")
+
+
+## ----warning=FALSE------------------------------------------------------------
+sra_table <- read.csv("D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/SraRunTable_E12.5.csv", 
+                      header = TRUE, 
+                      stringsAsFactors = FALSE)
+
+# Extract the first column which contains SRR 
+
+classification_table <- read.csv("D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/classification.csv")
+GSM_info_2 <- classification_table[,1]
+classification_label <- classification_table[,2]
+
+GSM_info_2 <- GSM_info_2[grep("E12.5",classification_label)]
+classification_label <- classification_label [grep("E12.5",classification_label)]
+classification_label <- gsub(" \\[single cell RNA-seq\\]","", classification_label)
+classification_label <- gsub("E12.5_","", classification_label)
+
+SRR_info <- sra_table[match(GSM_info_2,sra_table[,17]),1]
+
+which(colnames(res[[3]][["current"]][["M"]])!=SRR_info)
+
+embedding <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/embedding.rds")
+cell.colors <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/cell.colors.rds")
+embedding <- embedding[match(names(cell.colors), rownames(embedding)), ]
+
+
+index <- which(classification_label%in%rownames(embedding))
+
+index_order <- match(names(cell.colors),classification_label[index])
+
+
+## ----warning=FALSE------------------------------------------------------------
+
+SNP_1019 <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/SNP_1019.rds")
+
+names(SNP_1019) <- rownames(test.list[[1]])
+
+spliced_methylation_Beta_value_meta_index <- res_preprocess[["spliced_methylation_Beta_value_meta"]]
+unspliced_methylation_Beta_value_meta_index <-res_preprocess[["unspliced_methylation_Beta_value_meta"]]
+
+
+Beta_not_1or0 <- apply(res[[3]][["current"]]$Beta,1,function(x) length(which(x!=0&x!=1)))
+index_site_name_int_intersect <-   names(which(Beta_not_1or0>=10))
+
+
+## ----warning=FALSE------------------------------------------------------------
+
+
+
+umap_results <- embedding
+rownames(umap_results) <- SRR_info[index][index_order]
+names(cell.colors) <- SRR_info[index][index_order]
+umap_results <- as.data.frame(umap_results)
+umap_results$color <- as.factor(cell.colors)
+
+ggplot() +
+  geom_point(
+    data = umap_results,
+    aes(x = V1, y = V2, color = color)
+  ) +
+  labs(x = "PC1", y = "PC2") +  # Change axis labels
+  theme(
+    legend.position = "none",
+    legend.background = element_blank()
+  )
+
+
+arrow.scale=3; cell.alpha=0.4; cell.cex=1; fig.height=4;
+
+vis_umap_Beta_emb_Beta_linear_index  <- show.velocity.on.embedding.cor(umap_results[,1:2],
+             res[[3]][["current"]]$M[index_site_name_int_intersect,index],
+             res[[3]][["projected"]]$M[index_site_name_int_intersect,index],
+             res[[3]][["delta"]]$M[index_site_name_int_intersect,index],
+             cell.colors=cell.colors,n=200,scale='log',
+             cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5,rm_uniform="mode1")
+vis_umap_Beta_emb_Beta_linear_index[[1]]
+
+arrow.scale=10; cell.alpha=0.4; cell.cex=1; fig.height=4;
+vis_umap_Beta_emb_Beta_linear_index_grid <- show.velocity.on.embedding.cor(umap_results[,1:2],
+             res[[3]][["current"]]$M[index_site_name_int_intersect,index],
+             res[[3]][["projected"]]$M[index_site_name_int_intersect,index],
+             res[[3]][["delta"]]$M[index_site_name_int_intersect,index],
+             cell.colors=cell.colors,n=200,scale='log',
+             cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5,show.grid.flow = TRUE,grid.n = 20,rm_uniform="mode1")
+
+
+vis_umap_Beta_emb_Beta_linear_index_grid[[1]]
+
+
