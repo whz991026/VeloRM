@@ -1,0 +1,599 @@
+---
+title: "MeRIP-seq"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{MeRIP-seq}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(VeloRM)
+```
+## MeRIP_seq velocity pipeline
+### data download
+https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE29714 
+### alignment
+```{bash eval=FALSE}
+
+# Base directories
+input_base="/gpfs/work/bio/haozhewang17/data/GSE29714/SRR"
+output_base="/gpfs/work/bio/haozhewang17/data/GSE29714/SRR"
+
+srr=SRR494613 #SRR494614,SRR494615,SRR494616
+
+echo "Processing sample: $srr"
+# Input FASTQ file (assuming it's in ${input_base}/${srr}/${srr}.fastq)
+# Run trim_galore (single-end mode)
+trim_galore \
+   --output_dir "${output_base}/${srr}" \
+   --basename "${srr}" \
+   "${input_base}/${srr}/${srr}.fastq"
+
+
+
+# Base directories
+input_base="/gpfs/work/bio/haozhewang17/data/GSE29714/SRR"
+output_base="/gpfs/work/bio/haozhewang17/data/GSE29714/SRR"
+
+srr=SRR494613 #SRR494614,SRR494615,SRR494616
+
+echo "Processing sample: $srr"
+STAR --runThreadN 1 \
+--outSAMtype BAM Unsorted \
+--readFilesIn "${input_base}/${srr}/${srr}_trimmed.fq" \
+--genomeDir /gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38/star_indx \
+--sjdbGTFfile /gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38/Homo_sapiens.GRCh38.109.gtf \
+--outFileNamePrefix "${output_base}/${srr}/${srr}" \
+--outSAMattributes All \
+--outSAMunmapped Within \
+--sjdbOverhang 150 > "${output_base}/${srr}/${srr}.log"
+
+
+
+# Base directories
+input_base="/gpfs/work/bio/haozhewang17/data/GSE29714/SRR"
+output_base="/gpfs/work/bio/haozhewang17/data/GSE29714/SRR"
+
+srr=SRR494613 #SRR494614,SRR494615,SRR494616
+
+echo "Processing sample: $srr"
+samtools sort -@ 1 -o "${output_base}/${srr}/${srr}_sorted.bam" "${output_base}/${srr}/${srr}Aligned.out.bam"
+
+echo "Processing sample: $srr"
+samtools view -h -b -q 30 \
+"${input_base}/${srr}/${srr}_sorted.bam" \
+    -o "${input_base}/${srr}/${srr}_above.mapQ30.bam"
+
+
+```
+
+### divide bam
+```{bash eval=FALSE}
+
+###########################################################
+# File prepare
+###########################################################
+
+## get exon-no-ambiguity bed by substract (exon.bed - intron.bed = exon-na.bed)
+bedtools subtract -a UCSC_Exons.bed -b UCSC_Introns.bed > exon-na.bed
+
+## get intron-no-ambituity bed by subtract (inton.bed - exon.bed = inron-na.bed)
+bedtools subtract -a UCSC_Introns.bed -b UCSC_Exons.bed > inron-na.bed
+
+###########################################################
+### divide bam into spliced bam and unspliced bam
+###########################################################
+
+
+srr_list=("SRR494613")# "SRR494614" "SRR494615" "SRR494616")
+
+
+# Base directories
+input_base="/gpfs/work/bio/haozhewang17/data/GSE29714/SRR"
+output_base="/gpfs/work/bio/haozhewang17/data/GSE29714/SRR"
+
+
+
+
+#### mRNA.bam
+for srr in "${srr_list[@]}"; do
+    echo "Processing sample: $srr"
+    bedtools intersect -a "${input_base}/${srr}/${srr}_above.mapQ30.bam"\
+    -b /gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38_bed/UCSC_Introns.bed\
+    -v -wa -split > "${input_base}/${srr}/${srr}_mRNA_temp.bam"
+done
+
+for srr in "${srr_list[@]}"; do
+    echo "Processing sample: $srr"
+    bedtools intersect -a "${input_base}/${srr}/${srr}_mRNA_temp.bam"\
+    -b /gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38_bed/UCSC_Exons.bed\
+    -wa -split > "${input_base}/${srr}/${srr}_mRNA.bam"
+    samtools index "${input_base}/${srr}/${srr}_mRNA.bam"
+done
+  
+ #### mRNA_spliced.bam
+
+for srr in "${srr_list[@]}"; do
+    echo "Processing sample: $srr"
+    samtools view -h "${input_base}/${srr}/${srr}_mRNA.bam"\
+    | awk '$0 ~ /^@/ || $6 ~ /N/' | samtools view -b >\
+    "${input_base}/${srr}/${srr}_mRNA_spliced.bam"
+    samtools index "${input_base}/${srr}/${srr}_mRNA_spliced.bam"
+done
+
+  
+  #### pre-mRNA.bam
+
+for srr in "${srr_list[@]}"; do
+    echo "Processing sample: $srr"
+    bedtools intersect -a "${input_base}/${srr}/${srr}_above.mapQ30.bam"\
+    -b /gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38_bed/intron-na.bed\
+    -wa -split > "${input_base}/${srr}/${srr}_pre-mRNA.bam"
+    samtools index "${input_base}/${srr}/${srr}_pre-mRNA.bam"
+done
+
+  
+  #### isoform-a.bam
+
+for srr in "${srr_list[@]}"; do
+    echo "Processing sample: $srr"
+    bedtools intersect -a "${input_base}/${srr}/${srr}_above.mapQ30.bam"\
+    -b /gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38_bed/UCSC_Introns.bed\
+    -wa -split > "${input_base}/${srr}/${srr}_maybe_pre_mRNA.bam"
+done
+
+for srr in "${srr_list[@]}"; do
+    echo "Processing sample: $srr"
+    bedtools intersect -a "${input_base}/${srr}/${srr}_maybe_pre_mRNA.bam"\
+    -b /gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38_bed/intron-na.bed\
+    -v -wa -split > "${input_base}/${srr}/${srr}_isoform-a.bam"
+    samtools index "${input_base}/${srr}/${srr}_isoform-a.bam"
+done
+
+
+
+#### we can also do further to clean the splicing reads missing classify to ambiguous and pre-mRNA, and merge the splicing reads to mRNA.
+  
+  
+#  for srr in "${srr_list[@]}"; do
+#    echo "Processing sample: $srr"
+#    samtools view -h "${input_base}/${srr}/${srr}_pre-mRNA.bam"\
+#    | awk '$0 ~ /^@/ || $6 ~ /N/' | samtools view -b >\
+#    "${input_base}/${srr}/${srr}_pre-mRNA_spliced.bam"
+#    samtools index "${input_base}/${srr}/${srr}_pre-mRNA_spliced.bam"
+#  done
+  
+#  for srr in "${srr_list[@]}"; do
+#    echo "Processing sample: $srr"
+#    samtools view -h "${input_base}/${srr}/${srr}_isoform-a.bam"\
+#    | awk '$0 ~ /^@/ || $6 ~ /N/' | samtools view -b >\
+#    "${input_base}/${srr}/${srr}_isoform-a_spliced.bam"
+#    samtools index "${input_base}/${srr}/${srr}_isoform-a_spliced.bam"
+#  done
+  
+  
+#  for srr in "${srr_list[@]}"; do
+#    echo "Processing sample: $srr"
+#    bedtools subtract -a "${input_base}/${srr}/${srr}_pre-mRNA.bam"\
+#     -b "${input_base}/${srr}/${srr}_pre-mRNA_spliced.bam"\
+#      > "${input_base}/${srr}/${srr}_pre-mRNA_clean.bam"
+#  done
+  
+#  for srr in "${srr_list[@]}"; do
+#    echo "Processing sample: $srr"
+#    bedtools subtract -a "${input_base}/${srr}/${srr}_isoform-a.bam"\
+#     -b "${input_base}/${srr}/${srr}_isoform-a_spliced.bam"\
+#      > "${input_base}/${srr}/${srr}_isoform-a_clean.bam"
+#  done
+  
+#  for srr in "${srr_list[@]}"; do
+#    echo "Processing sample: $srr"
+#    samtools merge "${input_base}/${srr}/${srr}_mRNA_spliced_combine.bam"\
+#     "${input_base}/${srr}/${srr}_pre-mRNA_spliced.bam"\
+#     "${input_base}/${srr}/${srr}_isoform-a_spliced.bam"\
+#     "${input_base}/${srr}/${srr}_mRNA_spliced.bam"
+#  done
+```
+
+### overlap with the snp
+```{bash eval=FALSE}
+
+# ---- Load libraries ----
+library(Rsamtools)
+library(GenomicRanges)
+library(GenomicAlignments)
+
+# ---- Load SNP object ----
+SNP_37199 <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_2/scDART-seq/pre_process/SNP_37199.rds")
+
+# ---- Optional: fix seqlevels ----
+seqlevels(SNP_37199) <- gsub("^chr", "", seqlevels(SNP_37199))
+
+# ---- Make GRanges for SNPs ----
+snp_gr <- GRanges(
+  seqnames = seqnames(SNP_37199),
+  ranges = IRanges(start=start(SNP_37199), end=start(SNP_37199)),
+  strand = strand(SNP_37199),
+  name = SNP_37199$transcript_overlapped
+)
+
+# ---- BAM files ----
+bam_dir <- "/gpfs/work/bio/haozhewang17/data/GSE29714/SRR"
+srrs <- c("SRR494613","SRR494614","SRR494615","SRR494616")
+bam_types <- c("mRNA_spliced","pre-mRNA")
+
+# ---- Initialize result ----
+result <- data.frame(
+  SNP = snp_gr$name,
+  chrom = as.character(seqnames(snp_gr)),
+  pos = start(snp_gr)
+)
+
+# ---- Count reads for each BAM ----
+for(srr in srrs){
+  for(type in bam_types){
+    bam_file <- file.path(bam_dir, srr, paste0(srr,"_",type,".bam"))
+    if(!file.exists(bam_file)){
+      warning(paste("BAM file not found:", bam_file))
+      next
+    }
+
+    # Load BAM as GAlignments
+    param <- ScanBamParam(flag=scanBamFlag(isUnmappedQuery=FALSE))
+    bam_gr <- readGAlignments(bam_file, param=param)
+
+    # Count overlaps
+    counts <- countOverlaps(snp_gr, bam_gr)
+
+    # Add to result
+    result[[paste0(srr,"_",type)]] <- counts
+  }
+}
+
+# ---- Write output ----
+write.csv(result, file="SNP_37199_read_counts.csv", row.names=FALSE)
+```
+
+
+We will get the following data in VeloRM_data/MeRIP-seq/origin
+
+SNP_37199_read_counts.csv
+
+## pre-preocess
+### DESeq2
+```{r eval=FALSE}
+library(DESeq2)
+
+# Read CSV file containing read counts
+read_counts <- read.csv("/gpfs/work/bio/haozhewang17/data/GSE29714/SNP_37199_read_counts.csv", row.names = NULL, check.names = FALSE)
+# Extract pre-mRNA and spliced-mRNA columns
+pre_counts     <- read_counts[, c("SRR494613_pre-mRNA", "SRR494614_pre-mRNA", "SRR494615_pre-mRNA", "SRR494616_pre-mRNA")]
+spliced_counts <- read_counts[, c("SRR494613_mRNA_spliced", "SRR494614_mRNA_spliced", "SRR494615_mRNA_spliced", "SRR494616_mRNA_spliced")]
+
+# Define control/test and methylated/unmethylated groups
+# Control samples: SRR494613, SRR494615; Test samples: SRR494614, SRR494616
+meth_control   <- spliced_counts[, c("SRR494614_mRNA_spliced", "SRR494616_mRNA_spliced")]  # methylated counts for control?
+meth_test      <- pre_counts[, c("SRR494614_pre-mRNA", "SRR494616_pre-mRNA")]               # methylated counts for test
+unmeth_control <- spliced_counts[, c("SRR494613_mRNA_spliced", "SRR494615_mRNA_spliced")]  # unmethylated counts for control
+unmeth_test    <- pre_counts[, c("SRR494613_pre-mRNA", "SRR494615_pre-mRNA")]               # unmethylated counts for test
+
+# Custom DESeq2 analysis function
+DESeq2_test <- function(unmeth_control, unmeth_test, meth_control, meth_test) {
+  
+  # Convert all inputs to data.frame
+  meth_control   <- data.frame(meth_control)
+  meth_test      <- data.frame(meth_test)
+  unmeth_control <- data.frame(unmeth_control)
+  unmeth_test    <- data.frame(unmeth_test)
+  
+  # Function to calculate custom size factors
+  sizeFactor <- function(data) {
+    data <- as.matrix(data)
+    log_data <- log(data)
+    log_data[is.infinite(log_data)] <- NA
+    log_mean <- rowMeans(log_data, na.rm = TRUE)
+    log_s <- log_data - log_mean
+    s_size <- exp(apply(log_s, 2, function(x) median(x, na.rm = TRUE)))
+    return(s_size)
+  }
+  
+  # Calculate total counts for size factor computation
+  spliced_total   <- meth_control + unmeth_control
+  unspliced_total <- meth_test + unmeth_test
+  size_factor <- sizeFactor(cbind(spliced_total, unspliced_total))
+  
+  num_control <- ncol(unmeth_control)
+  num_test    <- ncol(unmeth_test)
+  
+  # Combine all four types of counts
+  counts <- cbind(unmeth_control, unmeth_test, meth_control, meth_test)
+  
+  # Create design matrix for DESeq2
+  design <- data.frame(
+    Trt = rep(c(rep("control", num_control), rep("test", num_test)), 2),
+    Meth = c(rep("methnon", num_control + num_test), rep("methylation", num_control + num_test))
+  )
+  
+  # Define model formula
+  model <- ~ Meth + Trt + Meth:Trt
+  
+  # Create DESeqDataSet
+  dds <- DESeqDataSetFromMatrix(countData = counts,
+                                colData = design,
+                                design = model)
+  
+  # Set custom size factors
+  sizeFactors(dds) <- rep(size_factor, 2)
+  
+  # Run DESeq2 using Wald test
+  dds <- DESeq(dds, test = "Wald")
+  
+  # Extract results for the interaction term
+  res <- DESeq2::results(dds, name = "Methmethylation.Trttest", cooksCutoff = FALSE)
+  
+  return(res)
+}
+
+# Run the DESeq2 analysis
+result <- DESeq2_test(unmeth_control, unmeth_test, meth_control, meth_test)
+
+# Save the results as an RDS file
+saveRDS(result, "/gpfs/work/bio/haozhewang17/data/GSE29714/res_DESeq2.rds")
+
+
+```
+### fisher
+```{r eval=FALSE}
+# -----------------------------
+# 1. Read input CSV
+# -----------------------------
+read_counts <- read.csv(
+  "/gpfs/work/bio/haozhewang17/data/GSE29714/SNP_37199_read_counts.csv",
+  row.names = NULL,
+  check.names = FALSE
+)
+
+# Extract pre-mRNA and spliced-mRNA columns
+pre_counts     <- read_counts[, c("SRR494613_pre-mRNA", "SRR494614_pre-mRNA", "SRR494615_pre-mRNA", "SRR494616_pre-mRNA")]
+spliced_counts <- read_counts[, c("SRR494613_mRNA_spliced", "SRR494614_mRNA_spliced", "SRR494615_mRNA_spliced", "SRR494616_mRNA_spliced")]
+
+# Define groups (exact same logic as your DESeq2 code)
+meth_control   <- spliced_counts[, c("SRR494614_mRNA_spliced", "SRR494616_mRNA_spliced")]
+meth_test      <- pre_counts[,     c("SRR494614_pre-mRNA",     "SRR494616_pre-mRNA")]
+unmeth_control <- spliced_counts[, c("SRR494613_mRNA_spliced", "SRR494615_mRNA_spliced")]
+unmeth_test    <- pre_counts[,     c("SRR494613_pre-mRNA",     "SRR494615_pre-mRNA")]
+
+# -----------------------------
+# 2. Fisher test function
+# -----------------------------
+Fisher_test <- function(unmeth_control, unmeth_test, meth_control, meth_test) {
+  
+  # Sum replicates
+  Uc <- rowSums(unmeth_control)  # control unmethylated
+  Mc <- rowSums(meth_control)    # control methylated
+  Ut <- rowSums(unmeth_test)     # test unmethylated
+  Mt <- rowSums(meth_test)       # test methylated
+  
+  n <- length(Uc)
+  
+  pvals <- numeric(n)
+  odds  <- numeric(n)
+  
+  for (i in seq_len(n)) {
+    
+    tbl <- matrix(c(Uc[i], Mc[i],
+                    Ut[i], Mt[i]),
+                  nrow = 2, byrow = TRUE)
+    
+    ft <- fisher.test(tbl)
+    
+    pvals[i] <- ft$p.value
+    odds[i]  <- ft$estimate
+  }
+  
+  # Adjust p-values (BH-FDR)
+  padj <- p.adjust(pvals, method = "BH")
+  
+  return(data.frame(
+    Uc = Uc, Mc = Mc,
+    Ut = Ut, Mt = Mt,
+    odds_ratio = odds,
+    pvalue = pvals,
+    padj = padj
+  ))
+}
+
+# -----------------------------
+# 3. Run Fisher test
+# -----------------------------
+fisher_result <- Fisher_test(unmeth_control, unmeth_test, meth_control, meth_test)
+
+# -----------------------------
+# 4. Save output
+# -----------------------------
+saveRDS(fisher_result, "/gpfs/work/bio/haozhewang17/data/GSE29714/res_Fisher.rds")
+```
+## analysis
+### DESeq2 vis
+```{r warning=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+res_DESeq2 <- readRDS("D:/data/VeloRM_data/MeRIP-seq/res_DESeq2.rds")
+
+log2FC <-res_DESeq2@listData[["log2FoldChange"]]
+pvals <- res_DESeq2@listData[["pvalue"]]
+
+plot_data <- data.frame(log2FC = log2FC, 
+                        pvalue = pvals,
+                        neg_log10_p = -log10(pvals))
+
+
+volcano_plot_DESeq2 <- ggplot(plot_data, aes(x = log2FC, y = neg_log10_p)) +
+  # Add light gray background for -1 < log2FC < 1 (non-significant FC region)
+  annotate("rect", xmin = -1, xmax = 1, ymin = 0, ymax = 30, 
+           fill = "gray90", alpha = 0.3) +
+  
+  # Color points based on significance and log2FC:
+  # - Red: log2FC > 1 & p < 0.05 (significantly up-regulated)
+  # - Blue: log2FC < -1 & p < 0.05 (significantly down-regulated)
+  # - Gray: Not significant or |log2FC| â‰¤ 1
+  geom_point(aes(color = case_when(
+    log2FC > 1 & pvalue < 0.05 ~ "Unspliced",
+    log2FC < -1 & pvalue < 0.05 ~ "Spliced",
+    TRUE ~ "Not significant"
+  )), alpha = 0.3) +
+  
+  # Manual color scale (red, blue, gray)
+  scale_color_manual(
+    values = c(
+      "Spliced" = "red",
+      "Unspliced" = "blue",
+      "Not significant" = "gray50"
+    ),
+    name = "Regulation"  # Legend title
+  ) +
+  
+  # Add dashed lines for thresholds:
+  # - Vertical: log2FC = Â±1
+  # - Horizontal: p-value = 0.05 (-log10(0.05) â‰ˆ 1.3)
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "black") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") +
+  
+  # Axis labels and theme
+  labs(
+    x = "log2 Fold Change", 
+    y = "-log10(p-value)",
+    title = NULL
+  ) +
+  theme_grey() +
+  # Set axis limits (zoomed-in view)
+  coord_cartesian(ylim = c(0, 4))
+volcano_plot_DESeq2
+
+n_unspliced <- length(which(log2FC >= 1 & pvals <= 0.05))  
+n_spliced <- length(which(log2FC <= -1 & pvals <= 0.05))  
+n_nonsig <- 37199-n_unspliced-n_spliced
+
+total <- n_unspliced + n_spliced + n_nonsig
+Percentage <- round(c(n_unspliced, n_spliced, n_nonsig) / total * 100, 1)
+
+df <- data.frame(
+  Category = c("Unspliced", "Spliced", "Insignificant"),
+  Count = c(n_unspliced, n_spliced, n_nonsig)
+)
+
+
+
+df$logCount <- log10(df$Count + 1)  
+
+log_bar <- ggplot(df, aes(x = Category, y = logCount, fill = Category)) +
+  geom_col(alpha = 0.7) +
+  geom_text(aes(label = Count), vjust = -0.5, size = 5) +
+  scale_fill_manual(values = c("Unspliced"="blue","Spliced"="red","Insignificant"="gray50")) +
+  labs(
+    x = "",
+    y = "log10(Count)",
+    title = NULL
+  ) +
+  theme_grey()+coord_cartesian(ylim=c(0,5))
+
+log_bar
+
+```
+
+### Fisher vis
+```{r warning=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+res_Fisher <- readRDS("D:/data/VeloRM_data/MeRIP-seq/res_Fisher.rds")
+
+log2FC <- log2(res_Fisher$odds_ratio)
+pvals <- res_Fisher$pvalue
+
+plot_data <- data.frame(log2FC = log2FC, 
+                        pvalue = pvals,
+                        neg_log10_p = -log10(pvals))
+plot_data <- plot_data[is.finite(plot_data$log2FC) &
+                         is.finite(plot_data$neg_log10_p), ]
+
+volcano_plot_Fisher <- ggplot(plot_data, aes(x = log2FC, y = neg_log10_p)) +
+  # Add light gray background for -1 < log2FC < 1 (non-significant FC region)
+  annotate("rect", xmin = -1, xmax = 1, ymin = 0, ymax = 30, 
+           fill = "gray90", alpha = 0.3) +
+  
+  # Color points based on significance and log2FC:
+  # - Red: log2FC > 1 & p < 0.05 (significantly up-regulated)
+  # - Blue: log2FC < -1 & p < 0.05 (significantly down-regulated)
+  # - Gray: Not significant or |log2FC| ?? 1
+  geom_point(aes(color = case_when(
+    log2FC > 1 & pvalue < 0.05 ~ "Unspliced",
+    log2FC < -1 & pvalue < 0.05 ~ "Spliced",
+    TRUE ~ "Not significant"
+  )), alpha = 0.3) +
+  
+  # Manual color scale (red, blue, gray)
+  scale_color_manual(
+    values = c(
+      "Spliced" = "red",
+      "Unspliced" = "blue",
+      "Not significant" = "gray50"
+    ),
+    name = "Regulation"  # Legend title
+  ) +
+  
+  # Add dashed lines for thresholds:
+  # - Vertical: log2FC = ??1
+  # - Horizontal: p-value = 0.05 (-log10(0.05) ?? 1.3)
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "black") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") +
+  
+  # Axis labels and theme
+  labs(
+    x = "log2 Fold Change", 
+    y = "-log10(p-value)",
+    title = NULL
+  ) +
+  theme_grey() +
+  # Set axis limits (zoomed-in view)
+  coord_cartesian(ylim = c(0, 5),xlim = c(-5, 5))
+volcano_plot_Fisher
+
+n_unspliced <- length(which(log2FC >= 1 & pvals <= 0.05))  
+n_spliced <- length(which(log2FC <= -1 & pvals <= 0.05))  
+n_nonsig <- 37199-n_unspliced-n_spliced
+
+total <- n_unspliced + n_spliced + n_nonsig
+Percentage <- round(c(n_unspliced, n_spliced, n_nonsig) / total * 100, 1)
+
+df <- data.frame(
+  Category = c("Unspliced", "Spliced", "Insignificant"),
+  Count = c(n_unspliced, n_spliced, n_nonsig)
+)
+
+df$logCount <- log10(df$Count + 1)  
+
+log_bar <- ggplot(df, aes(x = Category, y = logCount, fill = Category)) +
+  geom_col(alpha = 0.7) +
+  geom_text(aes(label = Count), vjust = -0.5, size = 5) +
+  scale_fill_manual(values = c("Unspliced"="blue","Spliced"="red","Insignificant"="gray50")) +
+  labs(
+    x = "",
+    y = "log10(Count)",
+    title = NULL
+  ) +
+  theme_grey()+coord_cartesian(ylim=c(0,5))
+
+log_bar
+```

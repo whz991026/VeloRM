@@ -426,6 +426,56 @@ for (srr in srr_info) {
   print(paste0("isoform-mRNA runing time", time_3-time_2))
 }
 
+# combine:
+
+# Extract SRR sample folder names into a character vector (skip the header line)
+srr_info <- list.dirs("/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE151334/Mus/SRR", recursive = FALSE, full.names = FALSE)
+srr_info <- srr_info[grepl("SRR", srr_info)]  # Keep only directories containing "SRR"
+
+
+
+# Initialize the spliced_list
+spliced_list <- list()
+j = 1
+for (srr in srr_info) {
+  name <- srr
+  path <- paste0('/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE151334/Mus/SRR/', srr,"/")
+  spliced_list[[j]] <- readRDS(paste0(path, srr, "_mRNA_spliced.bam_frequency_all.rds"))
+  j = j + 1
+}
+
+# Name the elements of spliced_list
+names(spliced_list) <- srr_info
+saveRDS(spliced_list, "/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE151334/Mus/SRR/spliced_A_to_I.rds")
+
+# Initialize the pre_list
+pre_list <- list()
+j = 1
+for (srr in srr_info) {
+  name <- srr
+  path <- paste0('/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE151334/Mus/SRR/', srr,"/")
+  pre_list[[j]] <- readRDS(paste0(path, srr, "_pre-mRNA.bam_frequency_all.rds"))
+  j = j + 1
+}
+
+# Name the elements of isoform_list
+names(pre_list) <- srr_info
+saveRDS(pre_list, "/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE151334/Mus/SRR/pre_A_to_I.rds")
+
+
+# Initialize the isoform_list
+isoform_list <- list()
+j = 1
+for (srr in srr_info) {
+  name <- srr
+  path <- paste0('/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE151334/Mus/SRR/', srr,"/")
+  isoform_list[[j]] <- readRDS(paste0(path, srr, "_isoform-a.bam_frequency_all.rds"))
+  j = j + 1
+}
+
+# Name the elements of pre_list
+names(isoform_list) <- srr_info
+saveRDS(isoform_list, "/gpfs/work/bio/haozhewang17/data/RNA-Seq_A-to-I_SRR_GSE151334/Mus/SRR/isoform_A_to_I.rds")
 
 ```
 ### summary the count
@@ -568,129 +618,89 @@ for t in types:
         print(f"[{t}] Saved merged counts matrix: {counts_out}")
         print(f"[{t}] Saved merged TPM matrix: {tpm_out}")
 
-```
-
-We will get the 
-Processed data:
-
-SNP_all
-
-bam_read_counts
-
-Frequency data: isoform_A_to_I, pre_A_to_I, spliced_A_to_I, isoform_TPM, pre_TPM, spliced_TPM
-
-## Overall reads counts
-```{r}
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-
-counts_data <- read.csv("D:/data/VeloRM_data/RNA-Seq_A-to-I_2/origin/bam_read_counts.csv", 
-                       header = TRUE,  # Assumes first row contains column names
-                       stringsAsFactors = FALSE)  # Prevents automatic conversion to factors
-
-# View the first few rows
-index_cell_name <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I_2/pre_process/index_cell_name.rds")
-counts_data <-counts_data [counts_data$Folder%in% index_cell_name,]
-
-counts_data_sum <- apply(counts_data,1,function(x) sum(as.numeric(x[2:4])))
-isoform_prop <- as.numeric(counts_data[,2])/counts_data_sum
-spliced_prop <- as.numeric(counts_data[,3])/counts_data_sum
-pre_prop <- as.numeric(counts_data[,4])/counts_data_sum
-
-df <- data.frame(
-  `mature RNA` = spliced_prop,
-  `pre RNA` = pre_prop,
-  `ambiguous` = isoform_prop,
-  check.names = FALSE
-)
-df_long <- pivot_longer(df, cols = everything(), 
-                       names_to = "Type", 
-                       values_to = "Probability")
-library(ggh4x)
-
-box_plot <- ggplot(df_long, aes(x = "", y = Probability, fill = Type)) +  
-    geom_boxplot(width = 0.3, alpha = 0.8, 
-                 outlier.shape = NA,
-                 coef = 0) + 
-    facet_wrap(~Type, scales = "free_y", ncol = 3) +
-scale_y_continuous(expand = c(0, 0))+ facetted_pos_scales(
-  y = list(Type == "mature RNA" ~ scale_y_continuous(limits=c(0,0.25)),
-           Type == "pre RNA" ~ scale_y_continuous(limits=c(0.4,1)),
-           Type == "ambiguous" ~ scale_y_continuous(limits=c(0,0.4))))+  
-    labs(
-        title = NULL,
-        x = NULL,  
-        y = "Probability"
-    ) +
-    # Use theme_gray() which is the default ggplot2 theme
-    theme_gray(base_size = 14)  +
-    scale_fill_manual(
-        values = c("mature RNA" = "#FF9999",  
-                   "pre RNA" = "#99CCFF",     
-                   "ambiguous" = "#99CC99"),   
-        breaks = c("mature RNA", "pre RNA", "ambiguous") 
-    )+
-  theme(
-    legend.position = "none"
-  )
-
-box_plot
-
-
-
-plot_data <- data.frame(
-  category = c("Ambiguous","Spliced", "Unspliced"),
-  proportion = c(sum(counts_data[,2]),sum(counts_data[,3]), sum(counts_data[,4]))
-)
-
-
-
-plot_data$fraction <- plot_data$proportion / sum(plot_data$proportion)
-plot_data$ypos <- cumsum(plot_data$fraction) - 0.5 * plot_data$fraction
-
-#  count 
-plot_data$count <- plot_data$proportion
-
-# pie
-pie_chart <- ggplot(plot_data, aes(x = "", y = fraction, fill = category)) +
-  geom_bar(stat = "identity", width = 1) +
-  coord_polar(theta = "y") +
-  geom_text(aes(
-    y = ypos,
-    label = paste0(category, "\n", count, "\n", round(fraction * 100, 1), "%")
-  ),
-  color = "white", size = 5, lineheight = 1.1) +
-  labs(title = NULL, x = NULL, y = NULL) +
-  theme_void() +
-  theme(legend.position = "none")
-
-pie_chart
-
-res_preprocess <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I_2/pre_process/res_preprocess.rds")
-spliced_index <- which(res_preprocess[["spliced_methylation_M_value_meta"]]>=1)
-unspliced_index <- which(res_preprocess[["unspliced_methylation_M_value_meta"]]>=1)
-
-
-spliced_index_l <- length(spliced_index)
-unspliced_index_l <- length(unspliced_index)
-intersect_l <- length(intersect(spliced_index,unspliced_index))
-
-library(VennDiagram)
-grid.newpage()
-venn <-draw.pairwise.venn(
-  area1 = spliced_index_l,
-  area2 = unspliced_index_l,
-  cross.area = intersect_l,
-  category = c("Spliced", "Unspliced"),
-  fill = c("#E74C3C","skyblue"),
-  alpha = 0.5,
-  lty = "blank",
-  cex = 2,
-  cat.cex = 1.5
-)
 
 ```
+### extract both have reads
+```{r eval=FALSE}
+
+# Read a tab-separated file (common for .txt exports)
+isoform_TPM <- read.table("C:/Users/Haozhe Wang/OneDrive/desktop/all_samples_TPM_matrix_isoform-a.txt", 
+                      header = TRUE,        # First row contains column names
+                      row.names = 1,
+                      sep = "\t")           # Separator is a tab
+
+# Read a tab-separated file (common for .txt exports)
+spliced_TPM <- read.table("C:/Users/Haozhe Wang/OneDrive/desktop/all_samples_TPM_matrix_mRNA_spliced.txt", 
+                          header = TRUE,        # First row contains column names
+                          row.names = 1,
+                          sep = "\t")           # Separator is a tab
+
+# Read a tab-separated file (common for .txt exports)
+pre_TPM <- read.table("C:/Users/Haozhe Wang/OneDrive/desktop/all_samples_TPM_matrix_pre-mRNA.txt", 
+                          header = TRUE,        # First row contains column names
+                          row.names = 1,
+                          sep = "\t")           # Separator is a tab
+
+colnames(isoform_TPM) <- gsub("_isoform\\.a", "", colnames(isoform_TPM))
+colnames(spliced_TPM) <- gsub("_mRNA_spliced", "", colnames(spliced_TPM))
+colnames(pre_TPM) <- gsub("_pre\\.mRNA", "", colnames(pre_TPM))
+
+index_isoform <- which(rowSums(isoform_TPM)!=0)
+index_spliced <- which(rowSums(spliced_TPM)!=0)
+index_pre <- which(rowSums(pre_TPM)!=0)
+
+index_pre_spliced <- intersect(index_pre,index_spliced)
+
+isoform_TPM_index_pre_spliced <- isoform_TPM[index_pre_spliced ,]
+pre_TPM_index_pre_spliced <- pre_TPM[index_pre_spliced ,]
+spliced_TPM_index_pre_spliced <- spliced_TPM[index_pre_spliced ,]
+
+setwd("C:/Users/Haozhe Wang/OneDrive/desktop")
+
+write.csv(isoform_TPM_index_pre_spliced, "isoform_TPM_index_pre_spliced.csv", row.names = TRUE, quote = FALSE)
+
+write.csv(pre_TPM_index_pre_spliced, "pre_TPM_index_pre_spliced.csv", row.names = TRUE, quote = FALSE)
+
+write.csv(spliced_TPM_index_pre_spliced, "spliced_TPM_index_pre_spliced.csv", row.names = TRUE, quote = FALSE)
+
+```
+
+
+We will get the following data in VeloRM_data/RNA-Seq_A-to-I_2/origin
+
+Download Data
+
+The following raw data files are required:
+
+cell_name_info.csv and cell_to_SRR.csv
+
+embedding.csv
+
+SraRunTable.csv
+
+Processed Data
+
+The following datasets are generated after preprocessing:
+
+SNP_all.rds
+
+bam_read_counts.csv
+
+Frequency Data
+
+Frequency matrices used for downstream analysis:
+
+isoform_A_to_I.rds
+
+pre_A_to_I.rds
+
+spliced_A_to_I.rds
+
+isoform_TPM_index_pre_spliced.csv
+
+pre_TPM_index_pre_spliced.csv
+
+spliced_TPM_index_pre_spliced.csv
 
 ## pre-process
 ### extract the modification read counts and un-modification read counts
@@ -1235,16 +1245,136 @@ print(end_time - start_time)
 saveRDS(result, "/gpfs/work/bio/haozhewang17/data/VeloRM_data/RNA-Seq_A-to-I_2/pre_process/res_DESeq2.rds")
 ```
 
-We will get the 
+We will get the following data in VeloRM_data/RNA-Seq_A-to-I_2/pre_process
+
 Processed data:
+
 SNP_1159: the SNP information for the A-to-I site for further analysis.
-test_list: the test cell reads counts (spliced_meth_test,spliced_unmeth_test,pre_meth_test,pre_unmeth_test,
+
+test_list: the test cell reads counts
+(spliced_meth_test,spliced_unmeth_test,pre_meth_test,pre_unmeth_test,
                    isoform_meth_test,isoform_unmeth_test)
+                   
 control_list: NULL
+
 res_preprocess: the list processed by VeloRM
+
 res_DESeq2: the DESeq2 results
 
 ## analysis
+### Overall reads counts
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+counts_data <- read.csv("D:/data/VeloRM_data/RNA-Seq_A-to-I_2/origin/bam_read_counts.csv", 
+                       header = TRUE,  # Assumes first row contains column names
+                       stringsAsFactors = FALSE)  # Prevents automatic conversion to factors
+
+# View the first few rows
+index_cell_name <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I_2/pre_process/index_cell_name.rds")
+counts_data <-counts_data [counts_data$Folder%in% index_cell_name,]
+
+counts_data_sum <- apply(counts_data,1,function(x) sum(as.numeric(x[2:4])))
+isoform_prop <- as.numeric(counts_data[,2])/counts_data_sum
+spliced_prop <- as.numeric(counts_data[,3])/counts_data_sum
+pre_prop <- as.numeric(counts_data[,4])/counts_data_sum
+
+df <- data.frame(
+  `mature RNA` = spliced_prop,
+  `pre RNA` = pre_prop,
+  `ambiguous` = isoform_prop,
+  check.names = FALSE
+)
+df_long <- pivot_longer(df, cols = everything(), 
+                       names_to = "Type", 
+                       values_to = "Probability")
+library(ggh4x)
+
+box_plot <- ggplot(df_long, aes(x = "", y = Probability, fill = Type)) +  
+    geom_boxplot(width = 0.3, alpha = 0.8, 
+                 outlier.shape = NA,
+                 coef = 0) + 
+    facet_wrap(~Type, scales = "free_y", ncol = 3) +
+scale_y_continuous(expand = c(0, 0))+ facetted_pos_scales(
+  y = list(Type == "mature RNA" ~ scale_y_continuous(limits=c(0,0.25)),
+           Type == "pre RNA" ~ scale_y_continuous(limits=c(0.4,1)),
+           Type == "ambiguous" ~ scale_y_continuous(limits=c(0,0.4))))+  
+    labs(
+        title = NULL,
+        x = NULL,  
+        y = "Probability"
+    ) +
+    # Use theme_gray() which is the default ggplot2 theme
+    theme_gray(base_size = 14)  +
+    scale_fill_manual(
+        values = c("mature RNA" = "#FF9999",  
+                   "pre RNA" = "#99CCFF",     
+                   "ambiguous" = "#99CC99"),   
+        breaks = c("mature RNA", "pre RNA", "ambiguous") 
+    )+
+  theme(
+    legend.position = "none"
+  )
+
+box_plot
+
+
+
+plot_data <- data.frame(
+  category = c("Ambiguous","Spliced", "Unspliced"),
+  proportion = c(sum(counts_data[,2]),sum(counts_data[,3]), sum(counts_data[,4]))
+)
+
+
+
+plot_data$fraction <- plot_data$proportion / sum(plot_data$proportion)
+plot_data$ypos <- cumsum(plot_data$fraction) - 0.5 * plot_data$fraction
+
+#  count 
+plot_data$count <- plot_data$proportion
+
+# pie
+pie_chart <- ggplot(plot_data, aes(x = "", y = fraction, fill = category)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  geom_text(aes(
+    y = ypos,
+    label = paste0(category, "\n", count, "\n", round(fraction * 100, 1), "%")
+  ),
+  color = "white", size = 5, lineheight = 1.1) +
+  labs(title = NULL, x = NULL, y = NULL) +
+  theme_void() +
+  theme(legend.position = "none")
+
+pie_chart
+
+res_preprocess <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I_2/pre_process/res_preprocess.rds")
+spliced_index <- which(res_preprocess[["spliced_methylation_M_value_meta"]]>=1)
+unspliced_index <- which(res_preprocess[["unspliced_methylation_M_value_meta"]]>=1)
+
+
+spliced_index_l <- length(spliced_index)
+unspliced_index_l <- length(unspliced_index)
+intersect_l <- length(intersect(spliced_index,unspliced_index))
+
+library(VennDiagram)
+grid.newpage()
+venn <-draw.pairwise.venn(
+  area1 = spliced_index_l,
+  area2 = unspliced_index_l,
+  cross.area = intersect_l,
+  category = c("Spliced", "Unspliced"),
+  fill = c("#E74C3C","skyblue"),
+  alpha = 0.5,
+  lty = "blank",
+  cex = 2,
+  cat.cex = 1.5
+)
+
+```
+
 ### splicing jucntion distance
 ```{r eval=FALSE}
 library(GenomicRanges)

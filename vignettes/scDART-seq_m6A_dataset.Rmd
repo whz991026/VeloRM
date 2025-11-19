@@ -224,6 +224,49 @@ for(i in folders){
   print(j)
 }
 
+
+
+#### we can also do further to clean the splicing reads missing classify to ambiguous and pre-mRNA, and merge the splicing reads to mRNA.
+  
+  
+#  for srr in "${srr_list[@]}"; do
+#    echo "Processing sample: $srr"
+#    samtools view -h "${input_base}/${srr}/${srr}_pre-mRNA.bam"\
+#    | awk '$0 ~ /^@/ || $6 ~ /N/' | samtools view -b >\
+#    "${input_base}/${srr}/${srr}_pre-mRNA_spliced.bam"
+#    samtools index "${input_base}/${srr}/${srr}_pre-mRNA_spliced.bam"
+#  done
+  
+#  for srr in "${srr_list[@]}"; do
+#    echo "Processing sample: $srr"
+#    samtools view -h "${input_base}/${srr}/${srr}_isoform-a.bam"\
+#    | awk '$0 ~ /^@/ || $6 ~ /N/' | samtools view -b >\
+#    "${input_base}/${srr}/${srr}_isoform-a_spliced.bam"
+#    samtools index "${input_base}/${srr}/${srr}_isoform-a_spliced.bam"
+#  done
+  
+  
+#  for srr in "${srr_list[@]}"; do
+#    echo "Processing sample: $srr"
+#    bedtools subtract -a "${input_base}/${srr}/${srr}_pre-mRNA.bam"\
+#     -b "${input_base}/${srr}/${srr}_pre-mRNA_spliced.bam"\
+#      > "${input_base}/${srr}/${srr}_pre-mRNA_clean.bam"
+#  done
+  
+#  for srr in "${srr_list[@]}"; do
+#    echo "Processing sample: $srr"
+#    bedtools subtract -a "${input_base}/${srr}/${srr}_isoform-a.bam"\
+#     -b "${input_base}/${srr}/${srr}_isoform-a_spliced.bam"\
+#      > "${input_base}/${srr}/${srr}_isoform-a_clean.bam"
+#  done
+  
+#  for srr in "${srr_list[@]}"; do
+#    echo "Processing sample: $srr"
+#    samtools merge "${input_base}/${srr}/${srr}_mRNA_spliced_combine.bam"\
+#     "${input_base}/${srr}/${srr}_pre-mRNA_spliced.bam"\
+#     "${input_base}/${srr}/${srr}_isoform-a_spliced.bam"\
+#     "${input_base}/${srr}/${srr}_mRNA_spliced.bam"
+#  done
 ```
 ### base counting
 ```{r eval=FALSE}
@@ -562,7 +605,6 @@ done
 
 ```
 ### combine gene counts
-SNP_all
 ```{python eval=FALSE}
 import os
 import pandas as pd
@@ -611,18 +653,97 @@ for t in types:
         print(f"[{t}] Saved counts matrix: {counts_out}")
         print(f"[{t}] Saved TPM matrix: {tpm_out}")
 ```
-We will get the 
-Processed data:
+### extract both have reads
+```{r eval=FALSE}
 
-Frequency data: frequency_pre_YTHmut, frequency_spliced_YTHmut, frequency_spliced_YTH, frequency_spliced_YTHmut,frequency_isoform_YTH, frequency_isoform_YTHmut,isoform_TPM, pre_TPM, spliced_TPM
+# Read a tab-separated file (common for .txt exports)
+isoform_TPM <- read.table("C:/Users/Haozhe Wang/OneDrive/desktop/all_samples_TPM_matrix_isoform-a.txt", 
+                      header = TRUE,        # First row contains column names
+                      row.names = 1,
+                      sep = "\t")           # Separator is a tab
 
-Downloaded data (from https://www.cell.com/cell-genomics/fulltext/S2666-979X(24)00331-8):
+# Read a tab-separated file (common for .txt exports)
+spliced_TPM <- read.table("C:/Users/Haozhe Wang/OneDrive/desktop/all_samples_TPM_matrix_mRNA_spliced.txt", 
+                          header = TRUE,        # First row contains column names
+                          row.names = 1,
+                          sep = "\t")           # Separator is a tab
 
-expression_TPM
+# Read a tab-separated file (common for .txt exports)
+pre_TPM <- read.table("C:/Users/Haozhe Wang/OneDrive/desktop/all_samples_TPM_matrix_pre-mRNA.txt", 
+                          header = TRUE,        # First row contains column names
+                          row.names = 1,
+                          sep = "\t")           # Separator is a tab
 
-gene_informations
+colnames(isoform_TPM) <- gsub("_isoform\\.a", "", colnames(isoform_TPM))
+colnames(spliced_TPM) <- gsub("_mRNA_spliced", "", colnames(spliced_TPM))
+colnames(pre_TPM) <- gsub("_pre\\.mRNA", "", colnames(pre_TPM))
 
-label_SigRM
+index_isoform <- which(rowSums(isoform_TPM)!=0)
+index_spliced <- which(rowSums(spliced_TPM)!=0)
+index_pre <- which(rowSums(pre_TPM)!=0)
+
+index_pre_spliced <- intersect(index_pre,index_spliced)
+
+isoform_TPM_index_pre_spliced <- isoform_TPM[index_pre_spliced ,]
+pre_TPM_index_pre_spliced <- pre_TPM[index_pre_spliced ,]
+spliced_TPM_index_pre_spliced <- spliced_TPM[index_pre_spliced ,]
+
+setwd("C:/Users/Haozhe Wang/OneDrive/desktop")
+
+write.csv(isoform_TPM_index_pre_spliced, "isoform_TPM_index_pre_spliced.csv", row.names = TRUE, quote = FALSE)
+
+write.csv(pre_TPM_index_pre_spliced, "pre_TPM_index_pre_spliced.csv", row.names = TRUE, quote = FALSE)
+
+write.csv(spliced_TPM_index_pre_spliced, "spliced_TPM_index_pre_spliced.csv", row.names = TRUE, quote = FALSE)
+
+```
+
+
+We will get the following data in VeloRM_data/scDART-seq/origin
+
+Download Data
+
+The following raw data files are required:
+
+expression_TPM.rds
+
+gene_informations.rds
+
+label_SigRM.rds and label_SigRM_data.csv
+
+emb_tsne_OR_intersect.csv and emb_umap_OR_intersect.csv
+
+SraRunTable_E12.5.csv
+
+Processed Data
+
+The following datasets are generated after preprocessing:
+
+SNP_all.rds
+
+bam_read_counts.csv
+
+Frequency Data
+
+Frequency matrices used for downstream analysis:
+
+frequency_isoform_YTH.rds
+
+frequency_isoform_YTHmut.rds
+
+frequency_pre_YTH.rds
+
+frequency_pre_YTHmut.rds
+
+frequency_spliced_YTH.rds
+
+frequency_spliced_YTHmut.rds
+
+isoform_TPM_index_pre_spliced.csv
+
+pre_TPM_index_pre_spliced.csv
+
+spliced_TPM_index_pre_spliced.csv
 
 ## pre-process
 ### extract the modification read counts and un-modification read counts
@@ -1581,17 +1702,33 @@ saveRDS(SigRMtest_res_spliced,
 saveRDS(SigRMtest_res_unspliced,
         "/gpfs/work/bio/haozhewang17/data/VeloRM_data/pre_process/SigRMtest_res_unspliced.rds")
 ```
-We will get the 
+We will get the following data in VeloRM_data/scDART-seq/pre_process
+
 Processed data:
 SNP_37199: the SNP information for the m6A site for further analysis.
-test_list: the test cell reads counts (spliced_meth_test,spliced_unmeth_test,pre_meth_test,pre_unmeth_test,
+
+test_list: the test cell reads counts
+(spliced_meth_test,spliced_unmeth_test,pre_meth_test,pre_unmeth_test,
                    isoform_meth_test,isoform_unmeth_test)
+                   
 control_list: the control cell reads counts (spliced_meth_control,spliced_unmeth_control,pre_meth_control,pre_unmeth_control,
                    isoform_meth_control,isoform_unmeth_control)
+                   
 res_preprocess: the list processed by VeloRM
+
 res_DESeq2: the DESeq2 results
+
 SigRMtest_res_unspliced: the SigRM test results comparing to the control for unspliced read counts
+
 SigRMtest_res_spliced: the SigRM test results comparing to the control for spliced read counts
+
+
+SigRMtest_res_overall_pvalue_median: the median SigRM test results comparing to the control for all read counts
+
+SigRMtest_res_spliced_overall_pvalue_median: the median SigRM test results comparing to the control for spliced read counts
+
+SigRMtest_res_unspliced_overall_pvalue_median: the median SigRM test results comparing to the control for unspliced read counts
+
 ## analysis
 ### Overall reads counts analysis
 ```{r warning=FALSE}
