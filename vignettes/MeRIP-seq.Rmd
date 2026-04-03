@@ -49,8 +49,8 @@ echo "Processing sample: $srr"
 STAR --runThreadN 1 \
 --outSAMtype BAM Unsorted \
 --readFilesIn "${input_base}/${srr}/${srr}_trimmed.fq" \
---genomeDir /gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38/star_indx \
---sjdbGTFfile /gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38/Homo_sapiens.GRCh38.109.gtf \
+--genomeDir /gpfs/work/bio/haozhewang17/data/VeloRM_data/hg38/star_indx \
+--sjdbGTFfile /gpfs/work/bio/haozhewang17/data/VeloRM_data/hg38/Homo_sapiens.GRCh38.109.gtf \
 --outFileNamePrefix "${output_base}/${srr}/${srr}" \
 --outSAMattributes All \
 --outSAMunmapped Within \
@@ -107,14 +107,14 @@ output_base="/gpfs/work/bio/haozhewang17/data/GSE29714/SRR"
 for srr in "${srr_list[@]}"; do
     echo "Processing sample: $srr"
     bedtools intersect -a "${input_base}/${srr}/${srr}_above.mapQ30.bam"\
-    -b /gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38_bed/UCSC_Introns.bed\
+    -b /gpfs/work/bio/haozhewang17/data/VeloRM_data/hg38_bed/UCSC_Introns.bed\
     -v -wa -split > "${input_base}/${srr}/${srr}_mRNA_temp.bam"
 done
 
 for srr in "${srr_list[@]}"; do
     echo "Processing sample: $srr"
     bedtools intersect -a "${input_base}/${srr}/${srr}_mRNA_temp.bam"\
-    -b /gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38_bed/UCSC_Exons.bed\
+    -b /gpfs/work/bio/haozhewang17/data/VeloRM_data/hg38_bed/UCSC_Exons.bed\
     -wa -split > "${input_base}/${srr}/${srr}_mRNA.bam"
     samtools index "${input_base}/${srr}/${srr}_mRNA.bam"
 done
@@ -135,7 +135,7 @@ done
 for srr in "${srr_list[@]}"; do
     echo "Processing sample: $srr"
     bedtools intersect -a "${input_base}/${srr}/${srr}_above.mapQ30.bam"\
-    -b /gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38_bed/intron-na.bed\
+    -b /gpfs/work/bio/haozhewang17/data/VeloRM_data/hg38_bed/intron-na.bed\
     -wa -split > "${input_base}/${srr}/${srr}_pre-mRNA.bam"
     samtools index "${input_base}/${srr}/${srr}_pre-mRNA.bam"
 done
@@ -146,14 +146,14 @@ done
 for srr in "${srr_list[@]}"; do
     echo "Processing sample: $srr"
     bedtools intersect -a "${input_base}/${srr}/${srr}_above.mapQ30.bam"\
-    -b /gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38_bed/UCSC_Introns.bed\
+    -b /gpfs/work/bio/haozhewang17/data/VeloRM_data/hg38_bed/UCSC_Introns.bed\
     -wa -split > "${input_base}/${srr}/${srr}_maybe_pre_mRNA.bam"
 done
 
 for srr in "${srr_list[@]}"; do
     echo "Processing sample: $srr"
     bedtools intersect -a "${input_base}/${srr}/${srr}_maybe_pre_mRNA.bam"\
-    -b /gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38_bed/intron-na.bed\
+    -b /gpfs/work/bio/haozhewang17/data/VeloRM_data/hg38_bed/intron-na.bed\
     -v -wa -split > "${input_base}/${srr}/${srr}_isoform-a.bam"
     samtools index "${input_base}/${srr}/${srr}_isoform-a.bam"
 done
@@ -212,7 +212,7 @@ library(GenomicRanges)
 library(GenomicAlignments)
 
 # ---- Load SNP object ----
-SNP_37199 <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_2/scDART-seq/pre_process/SNP_37199.rds")
+SNP_37199 <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/scDART-seq/pre_process/SNP_37199.rds")
 
 # ---- Optional: fix seqlevels ----
 seqlevels(SNP_37199) <- gsub("^chr", "", seqlevels(SNP_37199))

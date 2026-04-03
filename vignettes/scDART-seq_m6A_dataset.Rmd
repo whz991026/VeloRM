@@ -566,7 +566,7 @@ echo "Processing complete. Results saved to $output_file"
 ```{bash eval=FALSE}
 
 input_base="/gpfs/work/bio/haozhewang17/data/velocity/data_73"
-gtf_file="/gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38/Homo_sapiens.GRCh38.109.gtf"
+gtf_file="/gpfs/work/bio/haozhewang17/data/VeloRM_data/hg38/Homo_sapiens.GRCh38.109.gtf"
 
 sample_dirs=($(find "$input_base" -maxdepth 1 -type d -name "YTHcell_*" ! -name "YTHcell" | sort))
 
@@ -1674,6 +1674,125 @@ print(end_time - start_time)
 # Save the results
 saveRDS(result, "/gpfs/work/bio/haozhewang17/data/VeloRM_data/pre_process/res_DESeq2.rds")
 ```
+### pair binomial
+```{r eval=FALSE}
+library(lme4)
+
+run_paired_binomial_glmm <- function(sm, su, um, uu) {
+  
+  sites <- rownames(sm)
+  
+  results <- data.frame(
+    gene = sites,
+    log2OR = NA,
+    pvalue = NA,
+    stringsAsFactors = FALSE
+  )
+  
+  message(paste("Starting paired binomial GLMM for", length(sites), "sites..."))
+  
+  for (i in seq_along(sites)) {
+    
+    # -------------------------------
+    # Extract counts
+    # -------------------------------
+    
+    y_s <- as.numeric(sm[i, ])
+    n_s <- as.numeric(sm[i, ] + su[i, ])
+    
+    y_u <- as.numeric(um[i, ])
+    n_u <- as.numeric(um[i, ] + uu[i, ])
+    
+    cells <- colnames(sm)
+    
+    # -------------------------------
+    # Construct paired data
+    # -------------------------------
+    
+    df <- data.frame(
+      success = c(y_s, y_u),
+      total = c(n_s, n_u),
+      group = factor(rep(c("Spliced", "Unspliced"), each = length(cells))),
+      cell = factor(rep(cells, 2))
+    )
+    
+    # Filter low coverage
+    df <- df[df$total > 0, ]
+    
+    # Ensure both groups present
+    if (length(unique(df$group)) < 2 || length(unique(df$cell)) < 2) {
+      next
+    }
+    
+    # -------------------------------
+    # Fit GLMM (paired binomial)
+    # -------------------------------
+    
+    res <- tryCatch({
+      
+      fit <- glmer(
+        cbind(success, total - success) ~ group + (1 | cell),
+        family = binomial,
+        data = df,
+        control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 2e5))
+      )
+      
+      coef_mat <- summary(fit)$coefficients
+      
+      # groupUnspliced coefficient
+      list(
+        log2OR = coef_mat["groupUnspliced", "Estimate"] * log2(exp(1)),
+        pvalue = coef_mat["groupUnspliced", "Pr(>|z|)"]
+      )
+      
+    }, error = function(e) {
+      return(NULL)
+    })
+    
+    if (!is.null(res)) {
+      results$log2OR[i] <- res$log2OR
+      results$pvalue[i] <- res$pvalue
+    }
+    
+    if (i %% 500 == 0) {
+      message(paste("Processed", i, "sites"))
+    }
+  }
+  
+  results$padj <- p.adjust(results$pvalue, method = "BH")
+  
+  return(results)
+}
+
+
+
+
+test.list <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/test.list.rds")
+
+# Extract matrices
+spliced_meth <- test.list[[1]]      # Methylated counts (spliced)
+spliced_unmeth <- test.list[[2]]    # Unmethylated counts (spliced)
+unspliced_meth <- test.list[[3]]    # Methylated counts (unspliced)
+unspliced_unmeth <- test.list[[4]]  # Unmethylated counts (unspliced)
+
+
+
+
+start_time <- Sys.time()
+
+res <- run_paired_binomial_glmm(spliced_meth,
+                         spliced_unmeth,
+                         unspliced_meth,
+                         unspliced_unmeth)
+
+
+end_time <- Sys.time()
+print(end_time - start_time)
+
+saveRDS(res,"D:/data/VeloRM_data/scDART-seq/pre_process/res_binomial.rds")
+
+```
+
 ### SigRM to test the differential methylation between the test cell and control group
 ```{r eval=FALSE}
 test.list <- readRDS("/gpfs/work/bio/haozhewang17/data/VeloRM_data/pre_process/test.list.rds")
@@ -1862,7 +1981,7 @@ snp_data$snp_pos <- as.numeric(snp_data$snp_pos)
 
 
 # Read the GTF file from Ensembl
-gtf_file <- "D:/data/VeloRM_data/scDART-seq/origin/gencode.v47.chr_patch_hapl_scaff.annotation.gtf"
+gtf_file <- "D:/data/VeloRM_2/scDART-seq/origin/gencode.v47.chr_patch_hapl_scaff.annotation.gtf"
 gtf_data <- import(gtf_file)
 
 # Filter for exons
@@ -2016,9 +2135,88 @@ plot <- ggplot(all_distances_df, aes(x = group, y = log10(distance+1), fill = gr
  theme(plot.title = element_text(hjust = 0.5),
        legend.position = "none")+coord_cartesian(ylim = c(0,5))
 plot
+
+library(GenomicRanges)
+library(rtracklayer)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# ================= 1. 读取数据 =================
+
+# 假设路径保持不变
+res_preprocess <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/res_preprocess.rds")
+snp <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/SNP_37199.rds")
+
+snp_OR_post <- res_preprocess[["spliced_methylation_OR_value_meta"]]
+snp_OR_pre  <- res_preprocess[["unspliced_methylation_OR_value_meta"]]
+
+# ================= 2. 极速计算距离 (使用 GenomicRanges) =================
+
+# 将 SNP 转换为 GRanges
+snp_gr <- snp # 如果 snp 本身就是 GRanges 对象
+# 如果需要从 data.frame 构建，则用：
+# snp_gr <- GRanges(seqnames = snp_chr, ranges = IRanges(start = snp_pos, width = 1), strand = snp_strand)
+
+# 读取 GTF 并提取 Junction 点
+gtf_data <- import("D:/data/VeloRM_2/scDART-seq/origin/gencode.v47.chr_patch_hapl_scaff.annotation.gtf")
+exons <- gtf_data[gtf_data$type == "exon"]
+
+# 提取所有 Exon 的边界作为 Junction 候选点
+# Donor 是 end, Acceptor 是 start
+junction_points <- c(
+  GRanges(seqnames(exons), IRanges(start(exons), width = 1), strand = strand(exons)),
+  GRanges(seqnames(exons), IRanges(end(exons), width = 1), strand = strand(exons))
+)
+junction_points <- unique(junction_points) # 去重
+
+# 计算 SNP 到最近 Junction 的距离 (极速)
+dist_obj <- distanceToNearest(snp_gr, junction_points)
+snp_distances <- mcols(dist_obj)$distance
+
+# ================= 3. 整合数据 =================
+
+plot_df <- data.frame(
+  idx = 1:length(snp_distances),
+  distance = snp_distances,
+  OR_post = snp_OR_post,
+  OR_pre  = snp_OR_pre
+) %>%
+  pivot_longer(
+    cols = c(OR_post, OR_pre),
+    names_to = "Type",
+    values_to = "OR"
+  ) %>%
+  mutate(
+    # 使用 log10 更加直观 (10^1=10, 10^2=100)
+    log10_dist = log10(distance + 1),
+    Type = ifelse(Type == "OR_post", "Spliced (Post)", "Unspliced (Pre)")
+  )
+
+
+set.seed(42)
+plot_df_subsample <- plot_df[sample(1:dim(plot_df)[1],5000),]
+# 自动平滑拟合图 (展示整体趋势)
+p_smooth <- ggplot(plot_df_subsample, aes(x = log10_dist, y = OR, color = Type, fill = Type)) +
+  # 散点作为背景 (缩小 size 并增加透明度)
+  geom_point(alpha = 0.5, size = 1) +
+  scale_color_manual(values = c("Spliced (Post)" = "#E41A1C", "Unspliced (Pre)" = "#377EB8")) +
+  scale_fill_manual(values = c("Spliced (Post)" = "#E41A1C", "Unspliced (Pre)" = "#377EB8")) +
+  # 改进 X 轴刻度，显示真实距离数值
+  scale_x_continuous(breaks = c(0, 1, 2, 3, 4, 5)) +
+  labs(
+    x = "log Distance to nearest splice junction ",
+    y = "Odds Ratio (OR)",
+    title = "Methylation OR vs. Distance to Junction",
+    subtitle = "Points show raw data"
+  ) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())+coord_cartesian(ylim=c(-10,20))
+
+print(p_smooth)
 ```
 
-### read the DESeq2 results
+### Vis DESeq2 results
 ```{r warning=FALSE}
 library(ggplot2)
 library(dplyr)
@@ -2109,6 +2307,131 @@ pie_chart_DESeq2 <- ggplot(df, aes(x = "", y = Count, fill = Category)) +
   )
 
 pie_chart_DESeq2
+```
+
+### Vis pair binoimal results
+```{r warning=FALSE}
+
+res <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/res_binomial.rds")
+res_DESeq2 <- readRDS("D:/data/VeloRM_data/scDART-seq/pre_process/res_DESeq2.rds")
+
+
+
+library(VennDiagram)
+library(grid)
+
+# 3. Define significant sites
+# ===============================
+sig_binomial <- which(res$pvalue <= 0.05 & abs(res$log2OR)>1) 
+sig_DESeq2 <- which(res_DESeq2$pvalue <= 0.05 & abs(res_DESeq2$log2FoldChange)>1) 
+
+
+
+
+cor(res$log2OR[which(res$pvalue<=0.05&res_DESeq2$pvalue<=0.05&abs(res_DESeq2$log2FoldChange)>1&abs(res$log2OR)>1)],
+    res_DESeq2$log2FoldChange[which(res$pvalue<=0.05&res_DESeq2$pvalue<=0.05&abs(res_DESeq2$log2FoldChange)>1&abs(res$log2OR)>1)], method = "spearman", use = "na.or.complete")
+
+length(which(res$pvalue<=0.05&res$log2OR>1))
+length(which(res$pvalue<=0.05&res$log2OR<=-1))
+
+
+length(which(res_DESeq2$pvalue<=0.05&res_DESeq2$log2FoldChange>1))
+length(which(res_DESeq2$pvalue<=0.05&res_DESeq2$log2FoldChange<=-1))
+
+wilcox_signed <- wilcox.test(res$pvalue, res_DESeq2$pvalue, paired = TRUE, alternative = "two.sided")
+print(wilcox_signed)
+
+
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+
+
+
+log2FC <- res$log2OR
+pvals <- res$pvalue
+
+plot_data <- data.frame(log2FC = log2FC, 
+                        pvalue = pvals,
+                        neg_log10_p = -log10(pvals))
+set.seed(1)
+plot_data_5000_sample <- plot_data[sample(1:dim(plot_data)[1],2000),]
+
+volcano_plot_binomial <- ggplot(plot_data_5000_sample, aes(x = log2FC, y = neg_log10_p)) +
+  # Add light gray background for -1 < log2FC < 1 (non-significant FC region)
+  annotate("rect", xmin = -1, xmax = 1, ymin = 0, ymax = 30, 
+           fill = "gray90", alpha = 0.3) +
+  
+  # Color points based on significance and log2FC:
+  # - Red: log2FC > 1 & p < 0.05 (significantly up-regulated)
+  # - Blue: log2FC < -1 & p < 0.05 (significantly down-regulated)
+  # - Gray: Not significant or |log2FC| ≤ 1
+  geom_point(aes(color = case_when(
+    log2FC > 1 & pvalue < 0.05 ~ "Unspliced",
+    log2FC < -1 & pvalue < 0.05 ~ "Spliced",
+    TRUE ~ "Not significant"
+  )), alpha = 0.3) +
+  
+  # Manual color scale (red, blue, gray)
+  scale_color_manual(
+    values = c(
+      "Spliced" = "red",
+      "Unspliced" = "blue",
+      "Not significant" = "gray50"
+    ),
+    name = "Regulation"  # Legend title
+  ) +
+  
+  # Add dashed lines for thresholds:
+  # - Vertical: log2FC = ±1
+  # - Horizontal: p-value = 0.05 (-log10(0.05) ≈ 1.3)
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "black") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") +
+  
+  # Axis labels and theme
+  labs(
+    x = "log2 Fold Change", 
+    y = "-log10(p-value)",
+    title = NULL
+  ) +
+  theme_grey() +
+  # Set axis limits (zoomed-in view)
+  coord_cartesian(xlim = c(-5, 5))
+volcano_plot_binomial
+
+n_unspliced <- length(which(log2FC >= 1 & pvals <= 0.05))  
+n_spliced <- length(which(log2FC <= -1 & pvals <= 0.05))  
+n_nonsig <- length(log2FC) -n_unspliced-n_spliced
+
+total <- n_unspliced + n_spliced + n_nonsig
+Percentage <- round(c(n_unspliced, n_spliced, n_nonsig) / total * 100, 1)
+
+df <- data.frame(
+  Category = c("Unspliced", "Spliced", "Insignificant"),
+  Count = c(n_unspliced, n_spliced, n_nonsig)
+)
+
+
+
+pie_chart_binomial <- ggplot(df, aes(x = "", y = Count, fill = Category)) +
+  geom_bar(stat = "identity", width = 1, color = "white",alpha=0.6) +
+  coord_polar("y", start = 0) + 
+  geom_text(aes(label = paste0(Count, "\n(", Percentage, "%)")), 
+            position = position_stack(vjust = 0.5), size = 5) +
+  scale_fill_manual(values = c("Unspliced" = "blue", "Spliced" = "red","Insignificant"="gray50")) +
+  labs(
+    title = NULL,
+    x = NULL,
+    y = NULL
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "none"  
+  )
+
+pie_chart_binomial
 ```
 
 ### meth density
@@ -2351,7 +2674,7 @@ compare_metaTX_plot
 ```
 
 #### find the index of site only detect methylated reads in spliced or pre mRNA
-```{r warning=FALSE}
+```{r eval=FALSE}
 index_meth_only_detect_pre <-  which(res_preprocess[["vg.test"]] %in% res_preprocess[["index"]][["methylation only occurs at unspliced RNA"]])
 
 index_meth_only_detect_spliced <-  which(res_preprocess[["vg.test"]] %in%res_preprocess[["index"]][["methylation only occurs at spliced RNA"]])
@@ -3246,9 +3569,767 @@ plot_site119_OR
 
 
 ```
+### all site VeloRM
+#### OR embedding
+##### OR embedding tsne
+```{r eval=FALSE}
+library(ggplot2)
+rm(list = ls())
+gc()
+res <- readRDS("D:/data/VeloRM_data/scDART-seq/results/res_m6A_velocity.rds")
+index_site_name_int_intersect <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/index_site_name_int_intersect.rds")
+label_SigRM <- readRDS("D:/data/VeloRM_data/scDART-seq/origin/label_SigRM.rds")
+
+label_phase <- rep(NA,1209)
+names(label_phase) <- colnames(res[[1]][["conv.nmat.norm"]])
+
+label_phase[names(label_SigRM)] <- label_SigRM
+index <- which(label_phase=="G1"|label_phase=="G2/M"|label_phase=="S")
+library(Rtsne)
+
+
+
+data_scaled <- t(res[[3]][["current"]]$OR[index_site_name_int_intersect,])
+
+data_scaled <- scale(data_scaled)
+
+
+
+# Run t-SNE
+set.seed(42)
+tsne_result <- Rtsne(data_scaled, dims = 2, perplexity = 110,theta = 0.3,  max_iter = 1000,verbose = TRUE) # 100, 0.2, 1000/   # 100, 0.3, 1000, 
+
+# View t-SNE embeddings
+head(tsne_result$Y)
+label_phase_ <- label_phase
+label_phase_[label_phase=="unclear"] <- NA
+
+tsne_data <- data.frame(cbind(tsne_result$Y,label_phase_))
+colnames(tsne_data) <- c("x","y","color")
+tsne_data$x <- as.numeric(tsne_data$x)
+tsne_data$y <- as.numeric(tsne_data$y)
+
+ggplot()+geom_point(data=tsne_data[index,],aes(x=x,y=y,color=color))
+ggplot()+geom_point(data=tsne_data,aes(x=x,y=y,color=color))
+
+
+
+#arrow.scale=5; cell.alpha=0.4; cell.cex=1; fig.height=4;
+emb_tsne_OR_intersect <- tsne_result$Y
+rownames(emb_tsne_OR_intersect) <- colnames(res[[3]][["current"]]$OR)
+
+library(VeloRM)
+arrow.scale=5; cell.alpha=0.4; cell.cex=1; fig.height=4;
+vis_tsne_OR_emb_OR_log_index <- show.velocity.on.embedding.cor(emb_tsne_OR_intersect,
+             res[[3]][["current"]]$OR[,index],
+             res[[3]][["projected"]]$OR[,index],
+             res[[3]][["delta"]]$OR[,index],
+             cell.colors=label_phase[index],n=30,scale='log',
+             cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5)
+vis_tsne_OR_emb_OR_log_index[[1]]+theme(legend.position = c(0.85, 0.2),legend.background = element_blank())
+arrow.scale=3;
+vis_tsne_OR_emb_OR_log_index_grid <- show.velocity.on.embedding.cor(emb_tsne_OR_intersect,
+             res[[3]][["current"]]$OR[,index],
+             res[[3]][["projected"]]$OR[,index],
+             res[[3]][["delta"]]$OR[,index],
+             cell.colors=label_phase[index],n=30,scale='log',
+             cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5,show.grid.flow = TRUE,grid.n = 12)
+vis_tsne_OR_emb_OR_log_index_grid[[1]]+theme(legend.position = c(0.85, 0.2),legend.background = element_blank())
+
+
+
+
+
+saveRDS(vis_tsne_OR_emb_OR_log_index,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_tsne_OR_emb_OR_log_index_full_site.rds")
+saveRDS(vis_tsne_OR_emb_OR_log_index_grid,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_tsne_OR_emb_OR_log_index_grid_full_site.rds")
+
+
+
+# read the embedding
+emb_tsne_OR_intersect <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/emb_tsne_OR_intersect.rds")
+
+# read the name of the sites
+index_site_name_int_intersect <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/index_site_name_int_intersect.rds")
+
+
+# read the cell label 
+label_SigRM <- readRDS("D:/data/VeloRM_data/scDART-seq/origin/label_SigRM.rds")
+
+label_phase <- rep(NA,1209)
+names(label_phase) <- colnames(res[[1]][["conv.nmat.norm"]])
+
+label_phase[names(label_SigRM)] <- label_SigRM
+index <- which(label_phase=="G1"|label_phase=="G2/M"|label_phase=="S")
+
+diffusion_density_plot_tsne <- diffusion_density_plot(emb_tsne_OR_intersect[index,],vis_tsne_OR_emb_OR_log_index[[2]]$tp,forward = TRUE,2500,scale="log")
+
+saveRDS(diffusion_density_plot_tsne,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_tsne_full_site.rds")
+
+```
+###### vis
+```{r warning=FALSE}
+vis_tsne_OR_emb_OR_log_index_full_site <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_tsne_OR_emb_OR_log_index_full_site.rds")
+
+vis_tsne_OR_emb_OR_log_index_grid_full_site <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_tsne_OR_emb_OR_log_index_grid_full_site.rds")
+
+diffusion_density_plot_tsne_full_site <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_tsne_full_site.rds")
+
+vis_tsne_OR_emb_OR_log_index_full_site[[1]]
+
+vis_tsne_OR_emb_OR_log_index_grid_full_site[[1]]
+
+diffusion_density_plot_tsne_full_site
+```
+
+##### OR embedding UMAP
+```{r eval=FALSE}
+library(uwot)
+
+
+label_phase_ <- label_phase
+label_phase_[label_phase=="unclear"] <- NA
+# Run UMAP
+umap_result <- umap(t(res[[3]][["current"]]$OR[index_site_name_int_intersect,]),n_neighbors=30,min_dist=1.5,seed=42,pca=5)
+
+# View UMAP embeddings
+head(umap_result)
+
+
+
+umap_data <- data.frame(cbind(umap_result,label_phase_))
+colnames(umap_data) <- c("x","y","color")
+umap_data$x <- as.numeric(umap_data$x)
+umap_data$y <- as.numeric(umap_data$y)
+
+ggplot()+geom_point(data=umap_data[index,],aes(x=x,y=y,color=color))
+ggplot()+geom_point(data=umap_data,aes(x=x,y=y,color=color))
+
+
+
+emb_umap_OR_intersect <- umap_result
+rownames(emb_umap_OR_intersect) <- colnames(res[[3]][["current"]]$OR)
+
+library(VeloRM)
+arrow.scale=5; cell.alpha=0.4; cell.cex=1; fig.height=4;
+vis_umap_OR_emb_OR_log_index <- show.velocity.on.embedding.cor(emb_umap_OR_intersect,
+             res[[3]][["current"]]$OR[,index],
+             res[[3]][["projected"]]$OR[,index],
+             res[[3]][["delta"]]$OR[,index],
+             cell.colors=label_phase[index],n=30,scale='log',
+             cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5)
+vis_umap_OR_emb_OR_log_index[[1]]+theme(legend.position = c(0.2, 0.78),legend.background = element_blank())
+arrow.scale=5
+vis_umap_OR_emb_OR_log_index_grid <- show.velocity.on.embedding.cor(emb_umap_OR_intersect,
+             res[[3]][["current"]]$OR[,index],
+             res[[3]][["projected"]]$OR[,index],
+             res[[3]][["delta"]]$OR[,index],
+             cell.colors=label_phase[index],n=30,scale='log',
+             cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5,show.grid.flow = TRUE,grid.n = 11)
+vis_umap_OR_emb_OR_log_index_grid[[1]]+theme(legend.position = c(0.2, 0.78),legend.background = element_blank())
+
+
+saveRDS(vis_umap_OR_emb_OR_log_index,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_umap_OR_emb_OR_log_index_full_site.rds")
+saveRDS(vis_umap_OR_emb_OR_log_index_grid,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_umap_OR_emb_OR_log_index_grid_full_site.rds")
+
+
+
+# read the embedding
+emb_umap_OR_intersect <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/emb_umap_OR_intersect.rds")
+
+# read the name of the sites
+index_site_name_int_intersect <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/index_site_name_int_intersect.rds")
+
+
+# read the cell label 
+label_SigRM <- readRDS("D:/data/VeloRM_data/scDART-seq/origin/label_SigRM.rds")
+
+label_phase <- rep(NA,1209)
+names(label_phase) <- colnames(res[[1]][["conv.nmat.norm"]])
+
+label_phase[names(label_SigRM)] <- label_SigRM
+index <- which(label_phase=="G1"|label_phase=="G2/M"|label_phase=="S")
+
+diffusion_density_plot_umap <- diffusion_density_plot(emb_umap_OR_intersect[index,],vis_umap_OR_emb_OR_log_index[[2]]$tp,forward = TRUE,2500,scale="log")
+
+saveRDS(diffusion_density_plot_umap,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_umap_full_site.rds")
+```
+
+###### vis
+```{r warning=FALSE}
+vis_umap_OR_emb_OR_log_index_full_site <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_umap_OR_emb_OR_log_index_full_site.rds")
+
+vis_umap_OR_emb_OR_log_index_grid_full_site <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_umap_OR_emb_OR_log_index_grid_full_site.rds")
+
+diffusion_density_plot_umap_full_site <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_umap_full_site.rds")
+
+vis_umap_OR_emb_OR_log_index_full_site[[1]]
+
+vis_umap_OR_emb_OR_log_index_grid_full_site[[1]]
+
+diffusion_density_plot_umap_full_site
+```
+
+### random site VeloRM
+#### OR embedding
+##### OR embedding tsne
+```{r eval=FALSE}
+library(ggplot2)
+rm(list = ls())
+gc()
+res <- readRDS("D:/data/VeloRM_data/scDART-seq/results/res_m6A_velocity.rds")
+index_site_name_int_intersect <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/index_site_name_int_intersect.rds")
+label_SigRM <- readRDS("D:/data/VeloRM_data/scDART-seq/origin/label_SigRM.rds")
+
+label_phase <- rep(NA,1209)
+names(label_phase) <- colnames(res[[1]][["conv.nmat.norm"]])
+
+label_phase[names(label_SigRM)] <- label_SigRM
+index <- which(label_phase=="G1"|label_phase=="G2/M"|label_phase=="S")
+library(Rtsne)
+
+
+
+data_scaled <- t(res[[3]][["current"]]$OR[index_site_name_int_intersect,])
+
+data_scaled <- scale(data_scaled)
+
+
+
+# Run t-SNE
+set.seed(42)
+tsne_result <- Rtsne(data_scaled, dims = 2, perplexity = 110,theta = 0.3,  max_iter = 1000,verbose = TRUE) # 100, 0.2, 1000/   # 100, 0.3, 1000, 
+
+# View t-SNE embeddings
+head(tsne_result$Y)
+label_phase_ <- label_phase
+label_phase_[label_phase=="unclear"] <- NA
+
+tsne_data <- data.frame(cbind(tsne_result$Y,label_phase_))
+colnames(tsne_data) <- c("x","y","color")
+tsne_data$x <- as.numeric(tsne_data$x)
+tsne_data$y <- as.numeric(tsne_data$y)
+
+ggplot()+geom_point(data=tsne_data[index,],aes(x=x,y=y,color=color))
+ggplot()+geom_point(data=tsne_data,aes(x=x,y=y,color=color))
+
+
+
+#arrow.scale=5; cell.alpha=0.4; cell.cex=1; fig.height=4;
+emb_tsne_OR_intersect <- tsne_result$Y
+rownames(emb_tsne_OR_intersect) <- colnames(res[[3]][["current"]]$OR)
+
+
+set.seed(42)
+vis_tsne_OR_emb_OR_log_index_random_list <- list()
+vis_tsne_OR_emb_OR_log_index_grid_random_list <- list()
+
+diffusion_density_plot_tsne_list <- list()
+
+for (i in 1:100){
+  print(i)
+  index_site_name_random <- sample(rownames(res[[3]][["current"]]$OR),length(index_site_name_int_intersect))
+  library(VeloRM)
+  arrow.scale=5; cell.alpha=0.4; cell.cex=1; fig.height=4;
+  vis_tsne_OR_emb_OR_log_index <- show.velocity.on.embedding.cor(emb_tsne_OR_intersect,
+               res[[3]][["current"]]$OR[index_site_name_random,index],
+               res[[3]][["projected"]]$OR[index_site_name_random,index],
+               res[[3]][["delta"]]$OR[index_site_name_random,index],
+               cell.colors=label_phase[index],n=30,scale='log',
+               cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5)
+  vis_tsne_OR_emb_OR_log_index_random_list[[i]] <- vis_tsne_OR_emb_OR_log_index
+  arrow.scale=3;
+  vis_tsne_OR_emb_OR_log_index_grid <- show.velocity.on.embedding.cor(emb_tsne_OR_intersect,
+               res[[3]][["current"]]$OR[index_site_name_random,index],
+               res[[3]][["projected"]]$OR[index_site_name_random,index],
+               res[[3]][["delta"]]$OR[index_site_name_random,index],
+               cell.colors=label_phase[index],n=30,scale='log',
+               cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5,show.grid.flow = TRUE,grid.n = 12)
+  vis_tsne_OR_emb_OR_log_index_grid_random_list[[i]] <- vis_tsne_OR_emb_OR_log_index_grid
+  
+  print("done velocity")
+  
+  # read the embedding
+  emb_tsne_OR_intersect <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/emb_tsne_OR_intersect.rds")
+  
+  # read the name of the sites
+  index_site_name_int_intersect <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/index_site_name_int_intersect.rds")
+  
+  
+  # read the cell label 
+  label_SigRM <- readRDS("D:/data/VeloRM_data/scDART-seq/origin/label_SigRM.rds")
+  
+  label_phase <- rep(NA,1209)
+  names(label_phase) <- colnames(res[[1]][["conv.nmat.norm"]])
+  
+  label_phase[names(label_SigRM)] <- label_SigRM
+  index <- which(label_phase=="G1"|label_phase=="G2/M"|label_phase=="S")
+  
+  diffusion_density_plot_tsne <- diffusion_density_plot(emb_tsne_OR_intersect[index,],vis_tsne_OR_emb_OR_log_index[[2]]$tp,forward = TRUE,2500,scale="log")
+  diffusion_density_plot_tsne_list[[i]] <- diffusion_density_plot_tsne 
+}
+
+
+
+
+
+
+saveRDS(vis_tsne_OR_emb_OR_log_index_random_list,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_tsne_OR_emb_OR_log_index_random_list.rds")
+saveRDS(vis_tsne_OR_emb_OR_log_index_grid_random_list,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_tsne_OR_emb_OR_log_index_grid_random_list.rds")
+saveRDS(diffusion_density_plot_tsne_list,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_tsne_list.rds")
+
+
+```
+
+##### OR embedding UMAP
+```{r eval=FALSE}
+library(uwot)
+
+
+label_phase_ <- label_phase
+label_phase_[label_phase=="unclear"] <- NA
+# Run UMAP
+umap_result <- umap(t(res[[3]][["current"]]$OR[index_site_name_int_intersect,]),n_neighbors=30,min_dist=1.5,seed=42,pca=5)
+
+# View UMAP embeddings
+head(umap_result)
+
+
+
+umap_data <- data.frame(cbind(umap_result,label_phase_))
+colnames(umap_data) <- c("x","y","color")
+umap_data$x <- as.numeric(umap_data$x)
+umap_data$y <- as.numeric(umap_data$y)
+
+ggplot()+geom_point(data=umap_data[index,],aes(x=x,y=y,color=color))
+ggplot()+geom_point(data=umap_data,aes(x=x,y=y,color=color))
+
+
+
+emb_umap_OR_intersect <- umap_result
+rownames(emb_umap_OR_intersect) <- colnames(res[[3]][["current"]]$OR)
+
+
+set.seed(42)
+vis_umap_OR_emb_OR_log_index_random_list <- list()
+vis_umap_OR_emb_OR_log_index_grid_random_list <- list()
+
+diffusion_density_plot_umap_list <- list()
+
+for (i in 1:100){
+  print(i)
+  index_site_name_random <- sample(rownames(res[[3]][["current"]]$OR),length(index_site_name_int_intersect))
+  library(VeloRM)
+  arrow.scale=5; cell.alpha=0.4; cell.cex=1; fig.height=4;
+  vis_umap_OR_emb_OR_log_index <- show.velocity.on.embedding.cor(emb_umap_OR_intersect,
+               res[[3]][["current"]]$OR[index_site_name_random,index],
+               res[[3]][["projected"]]$OR[index_site_name_random,index],
+               res[[3]][["delta"]]$OR[index_site_name_random,index],
+               cell.colors=label_phase[index],n=30,scale='log',
+               cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5)
+  vis_umap_OR_emb_OR_log_index_random_list[[i]] <- vis_umap_OR_emb_OR_log_index
+  arrow.scale=3;
+  vis_umap_OR_emb_OR_log_index_grid <- show.velocity.on.embedding.cor(emb_umap_OR_intersect,
+               res[[3]][["current"]]$OR[index_site_name_random,index],
+               res[[3]][["projected"]]$OR[index_site_name_random,index],
+               res[[3]][["delta"]]$OR[index_site_name_random,index],
+               cell.colors=label_phase[index],n=30,scale='log',
+               cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5,show.grid.flow = TRUE,grid.n = 12)
+  vis_umap_OR_emb_OR_log_index_grid_random_list[[i]] <- vis_umap_OR_emb_OR_log_index_grid
+  
+  print("done velocity")
+  
+  # read the embedding
+  emb_umap_OR_intersect <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/emb_umap_OR_intersect.rds")
+  
+  # read the name of the sites
+  index_site_name_int_intersect <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/index_site_name_int_intersect.rds")
+  
+  
+  # read the cell label 
+  label_SigRM <- readRDS("D:/data/VeloRM_data/scDART-seq/origin/label_SigRM.rds")
+  
+  label_phase <- rep(NA,1209)
+  names(label_phase) <- colnames(res[[1]][["conv.nmat.norm"]])
+  
+  label_phase[names(label_SigRM)] <- label_SigRM
+  index <- which(label_phase=="G1"|label_phase=="G2/M"|label_phase=="S")
+  
+  diffusion_density_plot_umap <- diffusion_density_plot(emb_umap_OR_intersect[index,],vis_umap_OR_emb_OR_log_index[[2]]$tp,forward = TRUE,2500,scale="log")
+  diffusion_density_plot_umap_list[[i]] <- diffusion_density_plot_umap 
+}
+
+
+
+
+
+
+saveRDS(vis_umap_OR_emb_OR_log_index_random_list,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_umap_OR_emb_OR_log_index_random_list.rds")
+saveRDS(vis_umap_OR_emb_OR_log_index_grid_random_list,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_umap_OR_emb_OR_log_index_grid_random_list.rds")
+saveRDS(diffusion_density_plot_umap_list,"D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_umap_list.rds")
+
+```
+
+
+
+
 
 ### scVelo
 jupyter notebook is in figshare: https://doi.org/10.6084/m9.figshare.28955183 or https://github.com/whz991026/VeloRM
+
+
+### compare scvelo VeloRM (random all select)
+#### umap
+```{r warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(Matrix)
+library(lsa)
+library(patchwork)
+library(purrr)
+
+# ================= 1. 全局参数配置 =================
+
+config <- list(
+  prop_near = 0.10,  # G1/S 靠近边界的比例
+  prop_far  = 0.10,  # G2/M 远离边界的比例
+  n_random  = 100    # 随机抽样的次数
+)
+
+# ================= 2. 数据加载与预处理 =================
+
+# 2.1 元数据 (包含 latent_time)
+meta <- read.csv("D:/data/VeloRM_data/scVelo/scDART-seq/results/scDART_seq_exp_latent_umap.csv")
+meta <- meta %>%
+  dplyr::rename(cell = X) %>%
+  mutate(phase_merged = ifelse(phase %in% c("G1", "S"), "G1/S", "G2/M")) %>%
+  mutate(phase_merged = factor(phase_merged, levels = c("G1/S", "G2/M")))
+
+# 2.2 加载 VeloRM TP 矩阵
+obj_full <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_umap_OR_emb_OR_log_index_full_site.rds")
+obj_site <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_umap_OR_emb_OR_log_index.rds")
+tp_full <- obj_full[[2]]$tp
+tp_site <- obj_site[[2]]$tp
+
+# 2.3 加载 scVelo TP 矩阵
+tp_scvelo_raw <- read.csv("D:/data/VeloRM_data/scVelo/scDART-seq/results/scvelo_transition_matrix_umap.csv")
+rownames(tp_scvelo_raw) <- tp_scvelo_raw[,1]
+tp_scvelo <- as.matrix(tp_scvelo_raw[,-1]) # 转换为矩阵供计算
+
+# 2.4 加载坐标数据 (用于计算矢量方向)
+prepare_diff_data <- function(path) {
+  df_raw <- readRDS(path)$data
+  df_raw$cell <- rownames(df_raw)
+  return(df_raw)
+}
+diff_site <- prepare_diff_data("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_umap.rds")
+diff_full <- prepare_diff_data("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_umap_full_site.rds")
+
+# ================= 3. 核心计算函数 =================
+
+calculate_alignment_score <- function(tp_matrix, diff_data, meta_data, from_p, to_p, mode = "near") {
+  
+  common <- intersect(rownames(tp_matrix), intersect(diff_data$cell, meta_data$cell))
+  sub_meta <- meta_data %>% filter(cell %in% common)
+  sub_diff <- diff_data[common, ]
+  
+  to_ids <- sub_meta$cell[sub_meta$phase_merged == to_p]
+  from_ids <- sub_meta$cell[sub_meta$phase_merged == from_p]
+  
+  if(length(to_ids) < 5 || length(from_ids) < 5) return(NA)
+  
+  to_coords <- sub_diff[to_ids, c("dim1", "dim2")]
+  from_coords <- sub_diff[from_ids, c("dim1", "dim2")]
+  
+  min_dists <- apply(from_coords, 1, function(x) min(sqrt(colSums((t(to_coords) - x)^2))))
+  
+  if(mode == "near") {
+    selected_ids <- names(sort(min_dists)[1:max(1, round(length(from_ids) * config$prop_near))])
+  } else {
+    selected_ids <- names(sort(min_dists, decreasing = TRUE)[1:max(1, round(length(from_ids) * config$prop_far))])
+  }
+  
+  aligns <- sapply(selected_ids, function(cid) {
+    p_row <- tp_matrix[cid, common]
+    neighbor_ids <- names(p_row[p_row > 0.001])
+    if(length(neighbor_ids) == 0) return(NA)
+    
+    pos_i <- as.numeric(sub_diff[cid, c("dim1", "dim2")])
+    dist_to_target <- sqrt(rowSums(t(t(to_coords) - pos_i)^2))
+    v_ideal <- colMeans(to_coords[order(dist_to_target)[1:10], ]) - pos_i
+    
+    # 计算 TP 加权的实际位移矢量
+    pos_neighbors <- as.matrix(sub_diff[neighbor_ids, c("dim1", "dim2")])
+    v_actual <- colSums(p_row[neighbor_ids] * t(t(pos_neighbors) - pos_i))
+    
+    if(sum(v_actual^2) == 0 || sum(v_ideal^2) == 0) return(NA)
+    return(abs(as.numeric(lsa::cosine(v_actual, v_ideal))))
+  })
+  
+  return(mean(aligns, na.rm = TRUE))
+}
+
+get_method_performance <- function(tp_matrix, diff_data, meta_data) {
+  s1 <- calculate_alignment_score(tp_matrix, diff_data, meta_data, "G1/S", "G2/M", "near")
+  s2 <- calculate_alignment_score(tp_matrix, diff_data, meta_data, "G2/M", "G1/S", "far")
+  return(mean(c(s1, s2), na.rm = TRUE))
+}
+
+# ================= 4. 执行分析 =================
+
+# 4.1 计算确定性方法 (Site, Full, scVelo)
+score_site   <- get_method_performance(tp_site, diff_site, meta)
+score_full   <- get_method_performance(tp_full, diff_full, meta)
+score_scvelo <- get_method_performance(tp_scvelo, diff_site, meta) # 使用 diff_site 坐标系统评估
+
+# 4.2 计算 Random (100次随机试验)
+rand_tp_list <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_umap_OR_emb_OR_log_index_random_list.rds")
+rand_diff_list <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_umap_list.rds")
+
+random_scores <- sapply(1:config$n_random, function(i) {
+  tp_r <- rand_tp_list[[i]][[2]]$tp
+  diff_r <- rand_diff_list[[i]]$data
+  diff_r$cell <- rownames(diff_r)
+  return(get_method_performance(tp_r, diff_r, meta))
+})
+
+# 4.3 构建绘图数据框
+df_res <- data.frame(
+  Method = factor(c("Site_Selected", "Full_Site", "scVelo", rep("Random", config$n_random)),
+                  levels = c("Site_Selected", "Full_Site", "scVelo", "Random")),
+  Score = c(score_site, score_full, score_scvelo, random_scores)
+)
+
+# ================= 5. 可视化 =================
+
+# 5.1 细胞选择可视化
+visualize_selected_cells <- function(diff_data, meta_data) {
+  common <- intersect(diff_data$cell, meta_data$cell)
+  df_viz <- diff_data[common, ] %>% left_join(meta_data %>% dplyr::select(cell, phase_merged), by = "cell")
+  
+  to_g2m <- df_viz %>% filter(phase_merged == "G2/M") %>% dplyr::select(dim1, dim2)
+  from_g1s <- df_viz %>% filter(phase_merged == "G1/S")
+  dist1 <- apply(from_g1s[,c("dim1","dim2")], 1, function(x) min(sqrt(colSums((t(to_g2m)-x)^2))))
+  near_ids <- from_g1s$cell[order(dist1)[1:round(nrow(from_g1s)*config$prop_near)]]
+  
+  to_g1s <- df_viz %>% filter(phase_merged == "G1/S") %>% dplyr::select(dim1, dim2)
+  from_g2m <- df_viz %>% filter(phase_merged == "G2/M")
+  dist2 <- apply(from_g2m[,c("dim1","dim2")], 1, function(x) min(sqrt(colSums((t(to_g1s)-x)^2))))
+  far_ids <- from_g2m$cell[order(dist2, decreasing=TRUE)[1:round(nrow(from_g2m)*config$prop_far)]]
+  
+  df_viz$Selection <- ifelse(df_viz$cell %in% near_ids, "G1/S (Near)", 
+                             ifelse(df_viz$cell %in% far_ids, "G2/M (Far)", "Others"))
+  
+  ggplot(df_viz, aes(dim1, dim2, color = Selection)) +
+    geom_point(size = 0.8, alpha = 0.5) +
+    scale_color_manual(values = c("G1/S (Near)" = "#E41A1C", "G2/M (Far)" = "#377EB8", "Others" = "grey90")) +
+    theme_void() + labs(title = "Evaluation Strategy: Cell Selection") + theme(legend.position = "bottom")
+}
+
+p_map <- visualize_selected_cells(diff_site, meta)
+
+# 5.2 综合对比图
+my_colors <- c("Site_Selected" = "#E41A1C", "Full_Site" = "#377EB8", "scVelo" = "#4DAF4A", "Random" = "grey70")
+
+p_stats <- ggplot(df_res, aes(x = Method, y = Score, fill = Method)) +
+  # 随机组：箱线图 + 抖动点
+  geom_boxplot(data = filter(df_res, Method == "Random"), alpha = 0.5, width = 0.4, outlier.shape = NA) +
+  geom_jitter(data = filter(df_res, Method == "Random"), width = 0.1, size = 0.7, alpha = 0.4, color = "grey40") +
+  # 确定性组：柱状图
+  geom_col(data = filter(df_res, Method != "Random"), width = 0.6) +
+  geom_text(data = filter(df_res, Method != "Random"), aes(label = round(Score, 3)), vjust = -0.5, fontface = "bold") +
+  theme_classic() +
+  scale_fill_manual(values = my_colors) +
+  labs(title = "Methodology Comparison",
+       subtitle = paste0("Random N=100 | Combined Path Accuracy"),
+       y = "Mean |Cosine Similarity|") +
+  theme(legend.position = "none", axis.text.x = element_text(face = "bold", size = 10, angle = 30, hjust = 1))
+
+# 组合展示
+(p_map | p_stats) + plot_layout(widths = c(1, 1.2))
+
+# ================= 6. 统计汇总 =================
+cat("--- Final Accuracy Scores ---\n")
+print(df_res %>% group_by(Method) %>% summarise(Mean_Score = mean(Score), SD = sd(Score)))
+```
+
+#### tsne
+```{r}
+library(dplyr)
+library(ggplot2)
+library(Matrix)
+library(lsa)
+library(patchwork)
+library(purrr)
+
+# ================= 1. 全局参数配置 =================
+
+config <- list(
+  prop_near = 0.10,  # G1/S 靠近边界的比例
+  prop_far  = 0.10,  # G2/M 远离边界的比例
+  n_random  = 100    # 随机抽样的次数
+)
+
+# ================= 2. 数据加载与预处理 =================
+
+# 2.1 元数据 (包含 latent_time)
+meta <- read.csv("D:/data/VeloRM_data/scVelo/scDART-seq/results/scDART_seq_exp_latent_tsne.csv")
+meta <- meta %>%
+  dplyr::rename(cell = X) %>%
+  mutate(phase_merged = ifelse(phase %in% c("G1", "S"), "G1/S", "G2/M")) %>%
+  mutate(phase_merged = factor(phase_merged, levels = c("G1/S", "G2/M")))
+
+# 2.2 加载 VeloRM TP 矩阵
+obj_full <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_tsne_OR_emb_OR_log_index_full_site.rds")
+obj_site <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_tsne_OR_emb_OR_log_index.rds")
+tp_full <- obj_full[[2]]$tp
+tp_site <- obj_site[[2]]$tp
+
+# 2.3 加载 scVelo TP 矩阵
+tp_scvelo_raw <- read.csv("D:/data/VeloRM_data/scVelo/scDART-seq/results/scvelo_transition_matrix_tsne.csv")
+rownames(tp_scvelo_raw) <- tp_scvelo_raw[,1]
+tp_scvelo <- as.matrix(tp_scvelo_raw[,-1]) # 转换为矩阵供计算
+
+# 2.4 加载坐标数据 (用于计算矢量方向)
+prepare_diff_data <- function(path) {
+  df_raw <- readRDS(path)$data
+  df_raw$cell <- rownames(df_raw)
+  return(df_raw)
+}
+diff_site <- prepare_diff_data("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_tsne.rds")
+diff_full <- prepare_diff_data("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_tsne_full_site.rds")
+
+# ================= 3. 核心计算函数 =================
+
+calculate_alignment_score <- function(tp_matrix, diff_data, meta_data, from_p, to_p, mode = "near") {
+  
+  common <- intersect(rownames(tp_matrix), intersect(diff_data$cell, meta_data$cell))
+  sub_meta <- meta_data %>% filter(cell %in% common)
+  sub_diff <- diff_data[common, ]
+  
+  to_ids <- sub_meta$cell[sub_meta$phase_merged == to_p]
+  from_ids <- sub_meta$cell[sub_meta$phase_merged == from_p]
+  
+  if(length(to_ids) < 5 || length(from_ids) < 5) return(NA)
+  
+  to_coords <- sub_diff[to_ids, c("dim1", "dim2")]
+  from_coords <- sub_diff[from_ids, c("dim1", "dim2")]
+  
+  min_dists <- apply(from_coords, 1, function(x) min(sqrt(colSums((t(to_coords) - x)^2))))
+  
+  if(mode == "near") {
+    selected_ids <- names(sort(min_dists, decreasing = TRUE)[1:max(1, round(length(from_ids) * config$prop_far))])
+  } else {
+    selected_ids <- names(sort(min_dists)[1:max(1, round(length(from_ids) * config$prop_near))])
+  }
+  
+  aligns <- sapply(selected_ids, function(cid) {
+    p_row <- tp_matrix[cid, common]
+    neighbor_ids <- names(p_row[p_row > 0.001])
+    if(length(neighbor_ids) == 0) return(NA)
+    
+    pos_i <- as.numeric(sub_diff[cid, c("dim1", "dim2")])
+    dist_to_target <- sqrt(rowSums(t(t(to_coords) - pos_i)^2))
+    v_ideal <- colMeans(to_coords[order(dist_to_target)[1:10], ]) - pos_i
+    
+    # 计算 TP 加权的实际位移矢量
+    pos_neighbors <- as.matrix(sub_diff[neighbor_ids, c("dim1", "dim2")])
+    v_actual <- colSums(p_row[neighbor_ids] * t(t(pos_neighbors) - pos_i))
+    
+    if(sum(v_actual^2) == 0 || sum(v_ideal^2) == 0) return(NA)
+    return(abs(as.numeric(lsa::cosine(v_actual, v_ideal))))
+  })
+  
+  return(mean(aligns, na.rm = TRUE))
+}
+
+get_method_performance <- function(tp_matrix, diff_data, meta_data) {
+  s1 <- calculate_alignment_score(tp_matrix, diff_data, meta_data, "G1/S", "G2/M", "near")
+  s2 <- calculate_alignment_score(tp_matrix, diff_data, meta_data, "G2/M", "G1/S", "far")
+  return(mean(c(s1, s2), na.rm = TRUE))
+}
+
+# ================= 4. 执行分析 =================
+
+# 4.1 计算确定性方法 (Site, Full, scVelo)
+score_site   <- get_method_performance(tp_site, diff_site, meta)
+score_full   <- get_method_performance(tp_full, diff_full, meta)
+score_scvelo <- get_method_performance(tp_scvelo, diff_site, meta) # 使用 diff_site 坐标系统评估
+
+# 4.2 计算 Random (100次随机试验)
+rand_tp_list <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/vis_tsne_OR_emb_OR_log_index_random_list.rds")
+rand_diff_list <- readRDS("D:/data/VeloRM_data/scDART-seq/results/cell_cycle_sites/diffusion_density_plot_tsne_list.rds")
+
+random_scores <- sapply(1:config$n_random, function(i) {
+  tp_r <- rand_tp_list[[i]][[2]]$tp
+  diff_r <- rand_diff_list[[i]]$data
+  diff_r$cell <- rownames(diff_r)
+  return(get_method_performance(tp_r, diff_r, meta))
+})
+
+# 4.3 构建绘图数据框
+df_res <- data.frame(
+  Method = factor(c("Site_Selected", "Full_Site", "scVelo", rep("Random", config$n_random)),
+                  levels = c("Site_Selected", "Full_Site", "scVelo", "Random")),
+  Score = c(score_site, score_full, score_scvelo, random_scores)
+)
+
+# ================= 5. 可视化 =================
+
+# 5.1 细胞选择可视化
+visualize_selected_cells <- function(diff_data, meta_data) {
+  common <- intersect(diff_data$cell, meta_data$cell)
+  df_viz <- diff_data[common, ] %>% left_join(meta_data %>% dplyr::select(cell, phase_merged), by = "cell")
+  
+  to_g2m <- df_viz %>% filter(phase_merged == "G2/M") %>% dplyr::select(dim1, dim2)
+  from_g1s <- df_viz %>% filter(phase_merged == "G1/S")
+  dist1 <- apply(from_g1s[,c("dim1","dim2")], 1, function(x) min(sqrt(colSums((t(to_g2m)-x)^2))))
+  near_ids <- from_g1s$cell[order(dist1)[1:round(nrow(from_g1s)*config$prop_near)]]
+  
+  to_g1s <- df_viz %>% filter(phase_merged == "G1/S") %>% dplyr::select(dim1, dim2)
+  from_g2m <- df_viz %>% filter(phase_merged == "G2/M")
+  dist2 <- apply(from_g2m[,c("dim1","dim2")], 1, function(x) min(sqrt(colSums((t(to_g1s)-x)^2))))
+  far_ids <- from_g2m$cell[order(dist2, decreasing=TRUE)[1:round(nrow(from_g2m)*config$prop_far)]]
+  
+  df_viz$Selection <- ifelse(df_viz$cell %in% near_ids, "G1/S (Near)", 
+                             ifelse(df_viz$cell %in% far_ids, "G2/M (Far)", "Others"))
+  
+  ggplot(df_viz, aes(dim1, dim2, color = Selection)) +
+    geom_point(size = 0.8, alpha = 0.5) +
+    scale_color_manual(values = c("G1/S (Near)" = "#E41A1C", "G2/M (Far)" = "#377EB8", "Others" = "grey90")) +
+    theme_void() + labs(title = "Evaluation Strategy: Cell Selection") + theme(legend.position = "bottom")
+}
+
+p_map <- visualize_selected_cells(diff_site, meta)
+
+# 5.2 综合对比图
+my_colors <- c("Site_Selected" = "#E41A1C", "Full_Site" = "#377EB8", "scVelo" = "#4DAF4A", "Random" = "grey70")
+
+p_stats <- ggplot(df_res, aes(x = Method, y = Score, fill = Method)) +
+  geom_boxplot(data = filter(df_res, Method == "Random"),
+               alpha = 0.5, width = 0.4, outlier.shape = NA) +
+  geom_jitter(data = filter(df_res, Method == "Random"),
+              width = 0.1, size = 0.7, alpha = 0.4, color = "grey40") +
+  geom_col(data = filter(df_res, Method != "Random"), width = 0.6) +
+  geom_text(data = filter(df_res, Method != "Random"),
+            aes(label = round(Score, 3)),
+            vjust = -0.5, fontface = "bold") +
+  theme_classic() +
+  scale_fill_manual(values = my_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  
+  coord_cartesian(clip = "off") +                             
+  labs(title = "Methodology Comparison",
+       subtitle = "Random N=100 | Combined Path Accuracy",
+       y = "Mean |Cosine Similarity|") +
+  theme(legend.position = "none",
+        axis.text.x = element_text(face = "bold", size = 10, angle = 30, hjust = 1))
+
+# 组合展示
+(p_map | p_stats) + plot_layout(widths = c(1, 1.2))
+
+# ================= 6. 统计汇总 =================
+cat("--- Final Accuracy Scores ---\n")
+print(df_res %>% group_by(Method) %>% summarise(Mean_Score = mean(Score), SD = sd(Score)))
+```
 
 
 ### run the transcriptional_impact_analysis

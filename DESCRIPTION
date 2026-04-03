@@ -36,7 +36,11 @@ Suggests:
     ggh4x,
     tidyr,
     uwot,
-    scales
+    scales,
+    lsa,
+    patchwork,
+    purrr,
+    rtracklayer
 VignetteBuilder: knitr
 URL: https://github.com/whz991026/VeloRM
 BugReports: https://github.com/whz991026/VeloRM/issues

@@ -1095,21 +1095,21 @@ library(VeloRM)
 library(ggplot2)
 
 # Read metadata
-error_rate_meta_spliced <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/error_rate_meta_spliced.rds")
-error_rate_meta_pre <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/error_rate_meta_pre.rds")
+error_rate_meta_spliced <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/error_rate_meta_spliced.rds")
+error_rate_meta_pre <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/error_rate_meta_pre.rds")
 index_error <- intersect(which(error_rate_meta_spliced <= 0.01), which(error_rate_meta_pre <= 0.01))
 
 
 
 # Read counts
-reads_counts_spliced<- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_spliced.rds")
+reads_counts_spliced<- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/reads_counts_spliced.rds")
 
 # Process spliced data
 spliced_meth_test <- as.data.frame(lapply(reads_counts_spliced, function(df) df[["methylated_reads"]]))
 spliced_unmeth_test <- as.data.frame(lapply(reads_counts_spliced, function(df) df[["unmethylated_reads"]]))
 
 
-reads_counts_pre<- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_pre.rds")
+reads_counts_pre<- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/reads_counts_pre.rds")
 
 
 # Process spliced data
@@ -1146,13 +1146,13 @@ pre_meth_test_processed <- pre_meth_test[index,-union(index_cell_discard_spliced
 pre_unmeth_test_processed <- pre_unmeth_test[index,-union(index_cell_discard_spliced,index_cell_discard_pre)]
 
 
-saveRDS(union(index_cell_discard_spliced,index_cell_discard_pre),"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/index_cell_discard.rds")
-saveRDS(index_error,"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/index_error.rds")
-saveRDS(index,"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/index.rds")
+saveRDS(union(index_cell_discard_spliced,index_cell_discard_pre),"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/index_cell_discard.rds")
+saveRDS(index_error,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/index_error.rds")
+saveRDS(index,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/index.rds")
 
 
-reads_counts_isoform <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_isoform.rds")
-reads_counts_isoform <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_isoform.rds")
+reads_counts_isoform <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/reads_counts_isoform.rds")
+reads_counts_isoform <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/reads_counts_isoform.rds")
 
 # Process pre-mRNA data
 isoform_meth_test <- as.data.frame(lapply(reads_counts_isoform, function(df) df[["methylated_reads"]]))
@@ -1172,14 +1172,14 @@ control.list <- NULL
 res_preprocess_0.5 <- methylation.sites.preprocess(test.list,control.list,0.5)
 res_preprocess <- methylation.sites.preprocess(test.list,control.list)
 
-saveRDS(test.list,"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/test.list.rds")
-saveRDS(control.list,"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/control.list.rds")
-saveRDS(res_preprocess_0.5,"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/res_preprocess_0.5.rds")
-saveRDS(res_preprocess,"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/res_preprocess.rds")
+saveRDS(test.list,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/test.list.rds")
+saveRDS(control.list,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/control.list.rds")
+saveRDS(res_preprocess_0.5,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/res_preprocess_0.5.rds")
+saveRDS(res_preprocess,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/res_preprocess.rds")
 # 
-SNP <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/SNP_all.rds")
+SNP <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/SNP_all.rds")
 SNP_index <- SNP[index]
-saveRDS(SNP_index,"D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/SNP_1159.rds")
+saveRDS(SNP_index,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/SNP_1159.rds")
 ```
 ### DESeq2 to test the differential methylation between the spliced mRNA and pre-mRNA
 ```{r eval=FALSE}
@@ -1294,6 +1294,124 @@ res_preprocess: the list processed by VeloRM
 
 res_DESeq2: the DESeq2 results
 
+### pair binomial
+```{r eval=FALSE}
+library(lme4)
+
+run_paired_binomial_glmm <- function(sm, su, um, uu) {
+  
+  sites <- rownames(sm)
+  
+  results <- data.frame(
+    gene = sites,
+    log2OR = NA,
+    pvalue = NA,
+    stringsAsFactors = FALSE
+  )
+  
+  message(paste("Starting paired binomial GLMM for", length(sites), "sites..."))
+  
+  for (i in seq_along(sites)) {
+    
+    # -------------------------------
+    # Extract counts
+    # -------------------------------
+    
+    y_s <- as.numeric(sm[i, ])
+    n_s <- as.numeric(sm[i, ] + su[i, ])
+    
+    y_u <- as.numeric(um[i, ])
+    n_u <- as.numeric(um[i, ] + uu[i, ])
+    
+    cells <- colnames(sm)
+    
+    # -------------------------------
+    # Construct paired data
+    # -------------------------------
+    
+    df <- data.frame(
+      success = c(y_s, y_u),
+      total = c(n_s, n_u),
+      group = factor(rep(c("Spliced", "Unspliced"), each = length(cells))),
+      cell = factor(rep(cells, 2))
+    )
+    
+    # Filter low coverage
+    df <- df[df$total > 0, ]
+    
+    # Ensure both groups present
+    if (length(unique(df$group)) < 2 || length(unique(df$cell)) < 2) {
+      next
+    }
+    
+    # -------------------------------
+    # Fit GLMM (paired binomial)
+    # -------------------------------
+    
+    res <- tryCatch({
+      
+      fit <- glmer(
+        cbind(success, total - success) ~ group + (1 | cell),
+        family = binomial,
+        data = df,
+        control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 2e5))
+      )
+      
+      coef_mat <- summary(fit)$coefficients
+      
+      # groupUnspliced coefficient
+      list(
+        log2OR = coef_mat["groupUnspliced", "Estimate"] * log2(exp(1)),
+        pvalue = coef_mat["groupUnspliced", "Pr(>|z|)"]
+      )
+      
+    }, error = function(e) {
+      return(NULL)
+    })
+    
+    if (!is.null(res)) {
+      results$log2OR[i] <- res$log2OR
+      results$pvalue[i] <- res$pvalue
+    }
+    
+    if (i %% 500 == 0) {
+      message(paste("Processed", i, "sites"))
+    }
+  }
+  
+  results$padj <- p.adjust(results$pvalue, method = "BH")
+  
+  return(results)
+}
+
+
+
+
+test.list <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/test.list.rds")
+
+# Extract matrices
+spliced_meth <- test.list[[1]]      # Methylated counts (spliced)
+spliced_unmeth <- test.list[[2]]    # Unmethylated counts (spliced)
+unspliced_meth <- test.list[[3]]    # Methylated counts (unspliced)
+unspliced_unmeth <- test.list[[4]]  # Unmethylated counts (unspliced)
+
+
+
+start_time <- Sys.time()
+
+res <- run_paired_binomial_glmm(spliced_meth,
+                         spliced_unmeth,
+                         unspliced_meth,
+                         unspliced_unmeth)
+
+
+end_time <- Sys.time()
+print(end_time - start_time)
+
+
+saveRDS(res,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/res_binomial.rds")
+
+```
 
 ## analysis
 ### Overall reads counts
@@ -1302,7 +1420,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 
-counts_data <- read.csv("D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/bam_read_counts.csv", 
+counts_data <- read.csv("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/bam_read_counts.csv", 
                        header = TRUE,  # Assumes first row contains column names
                        stringsAsFactors = FALSE)  # Prevents automatic conversion to factors
 
@@ -1367,7 +1485,7 @@ pie_chart <- ggplot(plot_data, aes(x = "", y = proportion, fill = category)) +
 
 pie_chart
 
-res_preprocess <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/res_preprocess.rds")
+res_preprocess <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/res_preprocess.rds")
 spliced_index <- which(res_preprocess[["spliced_methylation_M_value_meta"]]>=1)
 unspliced_index <- which(res_preprocess[["unspliced_methylation_M_value_meta"]]>=1)
 
@@ -1400,7 +1518,7 @@ library(rtracklayer)
 library(dplyr)
 library(tidyr)
 
-snp <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/SNP_1019.rds")
+snp <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/SNP_1019.rds")
 snp_pos <- snp@ranges@start
 snp_chr_length <- snp@seqnames@lengths
 snp_chr_seq <- snp@seqnames@values
@@ -1413,7 +1531,7 @@ snp_data$snp_pos <- as.numeric(snp_data$snp_pos)
 
 
 # Read the GTF file from Ensembl
-gtf_file <- "D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/gencode.vM33.annotation.gtf"
+gtf_file <- "D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/gencode.vM33.annotation.gtf"
 gtf_data <- import(gtf_file)
 
 # Filter for exons
@@ -1548,13 +1666,13 @@ plot <- ggplot(all_distances_df, aes(x = group, y = log10(distance+1), fill = gr
        legend.position = "none")+coord_cartesian(ylim = c(0,7))
 
 
-saveRDS(all_distances_df,"D:/data/VeloRM_data/RNA-Seq_A-to-I/results/splicing_junction_analysis/all_distances_df.rds")
+saveRDS(all_distances_df,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/splicing_junction_analysis/all_distances_df.rds")
 
 
 ```
 #### vis
 ```{r warning=FALSE}
- all_distances_df <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/results/splicing_junction_analysis/all_distances_df.rds")
+ all_distances_df <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/splicing_junction_analysis/all_distances_df.rds")
 
 library(ggplot2)
 #  Boxplot
@@ -1569,16 +1687,94 @@ plot <- ggplot(all_distances_df, aes(x = group, y = log10(distance+1), fill = gr
  theme(plot.title = element_text(hjust = 0.5),
        legend.position = "none")+coord_cartesian(ylim = c(0,7))
 plot
+
+library(GenomicRanges)
+library(rtracklayer)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# ================= 1. 读取数据 =================
+
+# 假设路径保持不变
+res_preprocess <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/res_preprocess.rds")
+snp <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/SNP_1019.rds")
+
+snp_OR_post <- res_preprocess[["spliced_methylation_Beta_value_meta"]]
+snp_OR_pre  <- res_preprocess[["unspliced_methylation_Beta_value_meta"]]
+
+# ================= 2. 极速计算距离 (使用 GenomicRanges) =================
+
+# 将 SNP 转换为 GRanges
+snp_gr <- snp # 如果 snp 本身就是 GRanges 对象
+# 如果需要从 data.frame 构建，则用：
+# snp_gr <- GRanges(seqnames = snp_chr, ranges = IRanges(start = snp_pos, width = 1), strand = snp_strand)
+
+# 读取 GTF 并提取 Junction 点
+gtf_data <- import("D:/data/VeloRM_2/mm39/mm39.knownGene.gtf")
+exons <- gtf_data[gtf_data$type == "exon"]
+
+# 提取所有 Exon 的边界作为 Junction 候选点
+# Donor 是 end, Acceptor 是 start
+junction_points <- c(
+  GRanges(seqnames(exons), IRanges(start(exons), width = 1), strand = strand(exons)),
+  GRanges(seqnames(exons), IRanges(end(exons), width = 1), strand = strand(exons))
+)
+junction_points <- unique(junction_points) # 去重
+
+# 计算 SNP 到最近 Junction 的距离 (极速)
+dist_obj <- distanceToNearest(snp_gr, junction_points)
+snp_distances <- mcols(dist_obj)$distance
+
+# ================= 3. 整合数据 =================
+
+plot_df <- data.frame(
+  idx = 1:length(snp_distances),
+  distance = snp_distances,
+  OR_post = snp_OR_post,
+  OR_pre  = snp_OR_pre
+) %>%
+  pivot_longer(
+    cols = c(OR_post, OR_pre),
+    names_to = "Type",
+    values_to = "OR"
+  ) %>%
+  mutate(
+    # 使用 log10 更加直观 (10^1=10, 10^2=100)
+    log10_dist = log10(distance + 1),
+    Type = ifelse(Type == "OR_post", "Spliced (Post)", "Unspliced (Pre)")
+  )
+
+
+
+#自动平滑拟合图 (展示整体趋势)
+p_smooth <- ggplot(plot_df, aes(x = log10_dist, y = OR, color = Type, fill = Type)) +
+  # 散点作为背景 (缩小 size 并增加透明度)
+  geom_point(alpha = 0.5, size = 1) +
+  scale_color_manual(values = c("Spliced (Post)" = "#E41A1C", "Unspliced (Pre)" = "#377EB8")) +
+  scale_fill_manual(values = c("Spliced (Post)" = "#E41A1C", "Unspliced (Pre)" = "#377EB8")) +
+  # 改进 X 轴刻度，显示真实距离数值
+  scale_x_continuous(breaks = c(0, 1, 2, 3, 4, 5)) +
+  labs(
+    x = "log Distance to nearest splice junction",
+    y = "Odds Ratio (OR)",
+    title = "Methylation OR vs. Distance to Junction",
+    subtitle = "Points show raw data"
+  ) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())+coord_cartesian(ylim=c(0,1))
+
+print(p_smooth)
 ```
 
 
-### read the DESeq2 results
+### Vis DESeq2 results
 ```{r warning=FALSE}
 library(ggplot2)
 library(dplyr)
 library(tidyr)
 
-res_DESeq2 <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/res_DESeq2.rds")
+res_DESeq2 <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/res_DESeq2.rds")
 
 
 log2FC <-res_DESeq2@listData[["log2FoldChange"]]
@@ -1663,12 +1859,134 @@ pie_chart_DESeq2 <- ggplot(df, aes(x = "", y = Count, fill = Category)) +
 
 pie_chart_DESeq2
 ```
+### vis pair binomial
+```{r warning=FALSE}
+
+res <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/res_binomial.rds")
+res_DESeq2 <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/res_DESeq2.rds")
+
+
+
+library(VennDiagram)
+library(grid)
+
+# 3. Define significant sites
+# ===============================
+sig_binomial <- which(res$pvalue <= 0.05 & abs(res$log2OR)>1) 
+sig_DESeq2 <- which(res_DESeq2$pvalue <= 0.05 & abs(res_DESeq2$log2FoldChange)>1) 
+
+
+
+cor(res$log2OR[which(res$pvalue<=0.05&res_DESeq2$pvalue<=0.05)],res_DESeq2$log2FoldChange[which(res$pvalue<=0.05&res_DESeq2$pvalue<=0.05)], method = "spearman", use = "na.or.complete")
+
+length(which(res$pvalue<=0.05&res$log2OR>1))
+length(which(res$pvalue<=0.05&res$log2OR<=-1))
+
+
+length(which(res_DESeq2$pvalue<=0.05&res_DESeq2$log2FoldChange>1))
+length(which(res_DESeq2$pvalue<=0.05&res_DESeq2$log2FoldChange<=-1))
+
+wilcox_signed <- wilcox.test(res$pvalue, res_DESeq2$pvalue, paired = TRUE, alternative = "two.sided")
+print(wilcox_signed)
+
+
+
+
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+
+
+
+log2FC <- res$log2OR
+pvals <- res$pvalue
+
+plot_data <- data.frame(log2FC = log2FC, 
+                        pvalue = pvals,
+                        neg_log10_p = -log10(pvals))
+
+volcano_plot_binomial <- ggplot(plot_data, aes(x = log2FC, y = neg_log10_p)) +
+  # Add light gray background for -1 < log2FC < 1 (non-significant FC region)
+  annotate("rect", xmin = -1, xmax = 1, ymin = 0, ymax = 30, 
+           fill = "gray90", alpha = 0.3) +
+  
+  # Color points based on significance and log2FC:
+  # - Red: log2FC > 1 & p < 0.05 (significantly up-regulated)
+  # - Blue: log2FC < -1 & p < 0.05 (significantly down-regulated)
+  # - Gray: Not significant or |log2FC| ≤ 1
+  geom_point(aes(color = case_when(
+    log2FC > 1 & pvalue < 0.05 ~ "Unspliced",
+    log2FC < -1 & pvalue < 0.05 ~ "Spliced",
+    TRUE ~ "Not significant"
+  )), alpha = 0.3) +
+  
+  # Manual color scale (red, blue, gray)
+  scale_color_manual(
+    values = c(
+      "Spliced" = "red",
+      "Unspliced" = "blue",
+      "Not significant" = "gray50"
+    ),
+    name = "Regulation"  # Legend title
+  ) +
+  
+  # Add dashed lines for thresholds:
+  # - Vertical: log2FC = ±1
+  # - Horizontal: p-value = 0.05 (-log10(0.05) ≈ 1.3)
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "black") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") +
+  
+  # Axis labels and theme
+  labs(
+    x = "log2 Fold Change", 
+    y = "-log10(p-value)",
+    title = NULL
+  ) +
+  theme_grey() +
+  # Set axis limits (zoomed-in view)
+  coord_cartesian(ylim = c(0,6),xlim = c(-5, 5))
+volcano_plot_binomial
+
+n_unspliced <- length(which(log2FC >= 1 & pvals <= 0.05))  
+n_spliced <- length(which(log2FC <= -1 & pvals <= 0.05))  
+n_nonsig <- length(log2FC) -n_unspliced-n_spliced
+
+total <- n_unspliced + n_spliced + n_nonsig
+Percentage <- round(c(n_unspliced, n_spliced, n_nonsig) / total * 100, 1)
+
+df <- data.frame(
+  Category = c("Unspliced", "Spliced", "Insignificant"),
+  Count = c(n_unspliced, n_spliced, n_nonsig)
+)
+
+
+
+pie_chart_binomial <- ggplot(df, aes(x = "", y = Count, fill = Category)) +
+  geom_bar(stat = "identity", width = 1, color = "white",alpha=0.6) +
+  coord_polar("y", start = 0) + 
+  geom_text(aes(label = paste0(Count, "\n(", Percentage, "%)")), 
+            position = position_stack(vjust = 0.5), size = 5) +
+  scale_fill_manual(values = c("Unspliced" = "blue", "Spliced" = "red","Insignificant"="gray50")) +
+  labs(
+    title = NULL,
+    x = NULL,
+    y = NULL
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "none"  
+  )
+
+pie_chart_binomial
+```
 
 ### meth density
 ```{r warning=FALSE}
 
 # Load input data
-test.list <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/test.list.rds")
+test.list <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/test.list.rds")
 
 # Extract different parts of the data
 spliced.meth.test <- test.list[[1]]  # Methylated spliced data
@@ -1727,7 +2045,7 @@ library(TxDb.Mmusculus.UCSC.mm39.knownGene)
 library(MetaTX)
 library(ggplot2)
 library(dplyr)
-res_preprocess <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/res_preprocess.rds")
+res_preprocess <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/res_preprocess.rds")
 spliced_methylation_M_value_meta <- res_preprocess$spliced_methylation_M_value_meta
 unspliced_methylation_M_value_meta <- res_preprocess$unspliced_methylation_M_value_meta
 
@@ -1745,9 +2063,9 @@ intersect_pre_dominate <-index_pre_high_spliced_low
 
 intersect_spliced_dominate <-index_spliced_high_pre_low
 
-reads_counts_isoform <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_isoform.rds")
-reads_counts_pre <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_pre.rds")
-reads_counts_spliced <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/reads_counts_spliced.rds")
+reads_counts_isoform <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/reads_counts_isoform.rds")
+reads_counts_pre <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/reads_counts_pre.rds")
+reads_counts_spliced <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/reads_counts_spliced.rds")
 reads_counts_meth <- as.data.frame(lapply(reads_counts_isoform,function(x)x[["methylated_reads"]]))+
   as.data.frame(lapply(reads_counts_pre,function(x)x[["methylated_reads"]]))+
   as.data.frame(lapply(reads_counts_spliced,function(x)x[["methylated_reads"]]))
@@ -1763,8 +2081,8 @@ index_not_dominate <- order(reads_counts_M_overall,decreasing = TRUE)[1:500]
 
 # metaTX
 
-SNP_all <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/SNP_all.rds")
-SNP_1019 <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/SNP_1019.rds")
+SNP_all <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/SNP_all.rds")
+SNP_1019 <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/SNP_1019.rds")
 txdb <- TxDb.Mmusculus.UCSC.mm39.knownGene
 
 
@@ -1934,10 +2252,10 @@ transcript_info_ordered_pre <-transcript_info_ordered
 ## run velocity
 ```{r,warning=FALSE}
 library(ggplot2)
-res_preprocess <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/res_preprocess.rds")
+res_preprocess <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/res_preprocess.rds")
 # the input data
-test.list <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/test.list.rds")
-control.list <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/control.list.rds")
+test.list <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/test.list.rds")
+control.list <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/control.list.rds")
 
 
 spliced.meth.test <- test.list[[1]]
@@ -1957,19 +2275,19 @@ res <- methylation.site.relative.velocity.estimates(res_preprocess$test, res_pre
                                                     fit.quantile = 0.05, n.cores = 1, emat.size = emat_size, 
                                                     nmat.size = nmat_size)
 
-saveRDS(res, "D:/data/VeloRM_data/RNA-Seq_A-to-I/results/res_A_to_I_velocity.rds")
+saveRDS(res, "D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/res_A_to_I_velocity.rds")
 
 ```
 
 ### load the embedding (tsne)
 ```{r,warning=FALSE}
-sra_table <- read.csv("D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/SraRunTable_E12.5.csv", 
+sra_table <- read.csv("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/SraRunTable_E12.5.csv", 
                       header = TRUE, 
                       stringsAsFactors = FALSE)
 
 # Extract the first column which contains SRR 
 
-classification_table <- read.csv("D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/classification.csv")
+classification_table <- read.csv("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/classification.csv")
 GSM_info_2 <- classification_table[,1]
 classification_label <- classification_table[,2]
 
@@ -1982,8 +2300,8 @@ SRR_info <- sra_table[match(GSM_info_2,sra_table[,17]),1]
 
 which(colnames(res[[3]][["current"]][["M"]])!=SRR_info)
 
-embedding <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/embedding.rds")
-cell.colors <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/origin/cell.colors.rds")
+embedding <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/embedding.rds")
+cell.colors <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/cell.colors.rds")
 embedding <- embedding[match(names(cell.colors), rownames(embedding)), ]
 
 
@@ -1995,7 +2313,7 @@ index_order <- match(names(cell.colors),classification_label[index])
 #### filter
 ```{r,warning=FALSE}
 
-SNP_1019 <- readRDS("D:/data/VeloRM_data/RNA-Seq_A-to-I/pre_process/SNP_1019.rds")
+SNP_1019 <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/SNP_1019.rds")
 
 names(SNP_1019) <- rownames(test.list[[1]])
 
@@ -2054,6 +2372,547 @@ vis_umap_Beta_emb_Beta_linear_index_grid[[1]]
 
 ```
 
+## all site
+### load the embedding (tsne)
+```{r eval=FALSE}
+library(VeloRM)
+res <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/res_A_to_I_velocity.rds")
+res_preprocess <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/res_preprocess.rds")
+# the input data
+test.list <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/test.list.rds")
+control.list <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/control.list.rds")
+sra_table <- read.csv("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/SraRunTable_E12.5.csv", 
+                      header = TRUE, 
+                      stringsAsFactors = FALSE)
+
+# Extract the first column which contains SRR 
+
+classification_table <- read.csv("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/classification.csv")
+GSM_info_2 <- classification_table[,1]
+classification_label <- classification_table[,2]
+
+GSM_info_2 <- GSM_info_2[grep("E12.5",classification_label)]
+classification_label <- classification_label [grep("E12.5",classification_label)]
+classification_label <- gsub(" \\[single cell RNA-seq\\]","", classification_label)
+classification_label <- gsub("E12.5_","", classification_label)
+
+SRR_info <- sra_table[match(GSM_info_2,sra_table[,17]),1]
+
+which(colnames(res[[3]][["current"]][["M"]])!=SRR_info)
+
+embedding <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/embedding.rds")
+cell.colors <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/cell.colors.rds")
+embedding <- embedding[match(names(cell.colors), rownames(embedding)), ]
+
+
+index <- which(classification_label%in%rownames(embedding))
+
+index_order <- match(names(cell.colors),classification_label[index])
+
+```
+#### filter
+```{r eval=FALSE}
+
+SNP_1019 <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/SNP_1019.rds")
+
+names(SNP_1019) <- rownames(test.list[[1]])
+
+spliced_methylation_Beta_value_meta_index <- res_preprocess[["spliced_methylation_Beta_value_meta"]]
+unspliced_methylation_Beta_value_meta_index <-res_preprocess[["unspliced_methylation_Beta_value_meta"]]
+
+
+Beta_not_1or0 <- apply(res[[3]][["current"]]$Beta,1,function(x) length(which(x!=0&x!=1)))
+index_site_name_int_intersect <-   names(which(Beta_not_1or0>=10))
+
+```
+
+#### trajectory M
+```{r eval=FALSE}
+
+library(ggplot2)
+umap_results <- embedding
+rownames(umap_results) <- SRR_info[index][index_order]
+names(cell.colors) <- SRR_info[index][index_order]
+umap_results <- as.data.frame(umap_results)
+umap_results$color <- as.factor(cell.colors)
+
+ggplot() +
+  geom_point(
+    data = umap_results,
+    aes(x = V1, y = V2, color = color)
+  ) +
+  labs(x = "PC1", y = "PC2") +  # Change axis labels
+  theme(
+    legend.position = "none",
+    legend.background = element_blank()
+  )
+
+
+
+arrow.scale=3; cell.alpha=0.4; cell.cex=1; fig.height=4;
+
+vis_umap_Beta_emb_Beta_linear_index  <- show.velocity.on.embedding.cor(umap_results[,1:2],
+             res[[3]][["current"]]$M[index_site_name_int_intersect,index],
+             res[[3]][["projected"]]$M[index_site_name_int_intersect,index],
+             res[[3]][["delta"]]$M[index_site_name_int_intersect,index],
+             cell.colors=cell.colors,n=200,scale='log',
+             cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5,rm_uniform="mode1")
+vis_umap_Beta_emb_Beta_linear_index[[1]]
+
+arrow.scale=10; cell.alpha=0.4; cell.cex=1; fig.height=4;
+vis_umap_Beta_emb_Beta_linear_index_grid <- show.velocity.on.embedding.cor(umap_results[,1:2],
+             res[[3]][["current"]]$M[index_site_name_int_intersect,index],
+             res[[3]][["projected"]]$M[index_site_name_int_intersect,index],
+             res[[3]][["delta"]]$M[index_site_name_int_intersect,index],
+             cell.colors=cell.colors,n=200,scale='log',
+             cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5,show.grid.flow = TRUE,grid.n = 20,rm_uniform="mode1")
+
+
+vis_umap_Beta_emb_Beta_linear_index_grid[[1]]
+
+saveRDS(vis_umap_Beta_emb_Beta_linear_index,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/vis_umap_Beta_emb_Beta_linear_index.rds")
+saveRDS(vis_umap_Beta_emb_Beta_linear_index_grid,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/vis_umap_Beta_emb_Beta_linear_index_grid.rds")
+
+
+diffusion_density_plot_tsne <- diffusion_density_plot(umap_results[,1:2],vis_umap_Beta_emb_Beta_linear_index[[2]]$tp,forward = TRUE,2500,scale="log")
+
+saveRDS(diffusion_density_plot_tsne,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/diffusion_density_plot.rds")
+
+
+arrow.scale=3; cell.alpha=0.4; cell.cex=1; fig.height=4;
+
+vis_umap_Beta_emb_Beta_linear_index  <- show.velocity.on.embedding.cor(umap_results[,1:2],
+             res[[3]][["current"]]$M[,index],
+             res[[3]][["projected"]]$M[,index],
+             res[[3]][["delta"]]$M[,index],
+             cell.colors=cell.colors,n=200,scale='log',
+             cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5,rm_uniform="mode1")
+vis_umap_Beta_emb_Beta_linear_index[[1]]
+
+arrow.scale=10; cell.alpha=0.4; cell.cex=1; fig.height=4;
+vis_umap_Beta_emb_Beta_linear_index_grid <- show.velocity.on.embedding.cor(umap_results[,1:2],
+             res[[3]][["current"]]$M[,index],
+             res[[3]][["projected"]]$M[,index],
+             res[[3]][["delta"]]$M[,index],
+             cell.colors=cell.colors,n=200,scale='log',
+             cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5,show.grid.flow = TRUE,grid.n = 20,rm_uniform="mode1")
+
+
+vis_umap_Beta_emb_Beta_linear_index_grid[[1]]
+
+saveRDS(vis_umap_Beta_emb_Beta_linear_index,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/vis_umap_Beta_emb_Beta_linear_index_full_site.rds")
+saveRDS(vis_umap_Beta_emb_Beta_linear_index_grid,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/vis_umap_Beta_emb_Beta_linear_index_grid_full_site.rds")
+
+
+diffusion_density_plot_tsne <- diffusion_density_plot(umap_results[,1:2],vis_umap_Beta_emb_Beta_linear_index[[2]]$tp,forward = TRUE,2500,scale="log")
+
+saveRDS(diffusion_density_plot_tsne,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/diffusion_density_plot_full_site.rds")
+
+```
+
+### vis
+```{r warning= FALSE}
+vis_umap_Beta_emb_Beta_linear_index_full_site <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/vis_umap_Beta_emb_Beta_linear_index_full_site.rds")
+
+vis_umap_Beta_emb_Beta_linear_index_grid_full_site <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/vis_umap_Beta_emb_Beta_linear_index_grid_full_site.rds")
+
+diffusion_density_plot_full_site <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/diffusion_density_plot_full_site.rds")
+
+vis_umap_Beta_emb_Beta_linear_index_full_site[[1]]
+
+vis_umap_Beta_emb_Beta_linear_index_grid_full_site[[1]]
+
+diffusion_density_plot_full_site
+```
+
+## random site
+
+### load the embedding (tsne)
+```{r eval=FALSE}
+library(VeloRM)
+res <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/res_A_to_I_velocity.rds")
+res_preprocess <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/res_preprocess.rds")
+# the input data
+test.list <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/test.list.rds")
+control.list <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/control.list.rds")
+sra_table <- read.csv("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/SraRunTable_E12.5.csv", 
+                      header = TRUE, 
+                      stringsAsFactors = FALSE)
+
+# Extract the first column which contains SRR 
+
+classification_table <- read.csv("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/classification.csv")
+GSM_info_2 <- classification_table[,1]
+classification_label <- classification_table[,2]
+
+GSM_info_2 <- GSM_info_2[grep("E12.5",classification_label)]
+classification_label <- classification_label [grep("E12.5",classification_label)]
+classification_label <- gsub(" \\[single cell RNA-seq\\]","", classification_label)
+classification_label <- gsub("E12.5_","", classification_label)
+
+SRR_info <- sra_table[match(GSM_info_2,sra_table[,17]),1]
+
+which(colnames(res[[3]][["current"]][["M"]])!=SRR_info)
+
+embedding <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/embedding.rds")
+cell.colors <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/origin/cell.colors.rds")
+embedding <- embedding[match(names(cell.colors), rownames(embedding)), ]
+
+
+index <- which(classification_label%in%rownames(embedding))
+
+index_order <- match(names(cell.colors),classification_label[index])
+
+```
+#### filter
+```{r eval=FALSE}
+
+SNP_1019 <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/pre_process/SNP_1019.rds")
+
+names(SNP_1019) <- rownames(test.list[[1]])
+
+spliced_methylation_Beta_value_meta_index <- res_preprocess[["spliced_methylation_Beta_value_meta"]]
+unspliced_methylation_Beta_value_meta_index <-res_preprocess[["unspliced_methylation_Beta_value_meta"]]
+
+
+Beta_not_1or0 <- apply(res[[3]][["current"]]$Beta,1,function(x) length(which(x!=0&x!=1)))
+index_site_name_int_intersect <-   names(which(Beta_not_1or0>=10))
+
+```
+
+#### trajectory M
+```{r eval=FALSE}
+
+library(ggplot2)
+umap_results <- embedding
+rownames(umap_results) <- SRR_info[index][index_order]
+names(cell.colors) <- SRR_info[index][index_order]
+umap_results <- as.data.frame(umap_results)
+umap_results$color <- as.factor(cell.colors)
+
+ggplot() +
+  geom_point(
+    data = umap_results,
+    aes(x = V1, y = V2, color = color)
+  ) +
+  labs(x = "PC1", y = "PC2") +  # Change axis labels
+  theme(
+    legend.position = "none",
+    legend.background = element_blank()
+  )
+
+
+set.seed(42)
+
+vis_umap_Beta_emb_Beta_linear_index_random_list <- list()
+vis_umap_Beta_emb_Beta_linear_index_grid_random_list <- list()
+
+diffusion_density_plot_list <- list()
+for (i in 1:100){
+   print(i)
+  index_site_name_random <- sample(rownames(res[[3]][["current"]]$M),length(index_site_name_int_intersect))
+  library(VeloRM)
+  arrow.scale=3; cell.alpha=0.4; cell.cex=1; fig.height=4;
+  
+  vis_umap_Beta_emb_Beta_linear_index  <- show.velocity.on.embedding.cor(umap_results[,1:2],
+               res[[3]][["current"]]$M[index_site_name_random,index],
+               res[[3]][["projected"]]$M[index_site_name_random,index],
+               res[[3]][["delta"]]$M[index_site_name_random,index],
+               cell.colors=cell.colors,n=200,scale='log',
+               cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5,rm_uniform="mode1")
+  vis_umap_Beta_emb_Beta_linear_index_random_list[[i]] <- vis_umap_Beta_emb_Beta_linear_index
+  
+  arrow.scale=10; cell.alpha=0.4; cell.cex=1; fig.height=4;
+  vis_umap_Beta_emb_Beta_linear_index_grid <- show.velocity.on.embedding.cor(umap_results[,1:2],
+               res[[3]][["current"]]$M[index_site_name_random,index],
+               res[[3]][["projected"]]$M[index_site_name_random,index],
+               res[[3]][["delta"]]$M[index_site_name_random,index],
+               cell.colors=cell.colors,n=200,scale='log',
+               cex=cell.cex,arrow.scale=arrow.scale,arrow.lwd=0.5,show.grid.flow = TRUE,grid.n = 20,rm_uniform="mode1")
+  vis_umap_Beta_emb_Beta_linear_index_grid_random_list[[i]] <- vis_umap_Beta_emb_Beta_linear_index_grid
+  diffusion_density_plot_tsne <- diffusion_density_plot(umap_results[,1:2],vis_umap_Beta_emb_Beta_linear_index[[2]]$tp,forward = TRUE,2500,scale="log")
+  
+  diffusion_density_plot_list[[i]] <- diffusion_density_plot_tsne
+}
+
+
+saveRDS(vis_umap_Beta_emb_Beta_linear_index_random_list,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/vis_umap_Beta_emb_Beta_linear_index_random_list.rds")
+saveRDS(vis_umap_Beta_emb_Beta_linear_index_grid_random_list,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/vis_umap_Beta_emb_Beta_linear_index_grid_random_list.rds")
+
+saveRDS(diffusion_density_plot_list,"D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/diffusion_density_plot.rds")
+
+
+```
+
+
 ## scVelo
 jupyter notebook is in figshare: https://doi.org/10.6084/m9.figshare.28955183 or https://github.com/whz991026/VeloRM
 
+
+## compare scvelo VeloRM (random all select)
+### origin vs all vs scvelo (pseudo time compare real time)
+```{r warning=FALSE}
+library(utils)
+library(ggplot2)
+library(dplyr)
+
+# ================= 1. 数据加载 =================
+scRNA_seq_1_exp_latent_umap <- read.csv("D:/data/VeloRM_data/scVelo/scRNA-seq_1/results/scRNA_seq_1_exp_latent_umap.csv")
+
+diffusion_density_plot <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/diffusion_density_plot.rds")
+
+diffusion_density_plot_full_site <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/diffusion_density_plot_full_site.rds")
+
+# ================= 1. 数据加载 =================
+meta <- scRNA_seq_1_exp_latent_umap
+df1 <- diffusion_density_plot[["data"]]
+df2 <- diffusion_density_plot_full_site[["data"]]
+
+# ================= 2. 工具函数 =================
+norm01 <- function(x){
+  (x - min(x, na.rm=TRUE)) / (max(x, na.rm=TRUE) - min(x, na.rm=TRUE))
+}
+
+# ================= 3. pseudo =================
+df1$pseudo_site <- norm01(df1$density)
+df2$pseudo_full <- norm01(df2$density)
+
+meta <- meta %>%
+  mutate(cell = X,
+         pseudo_scvelo = norm01(latent_time))
+
+df_all <- meta %>%
+  left_join(data.frame(cell = rownames(df1), pseudo_site = df1$pseudo_site),
+            by = "cell") %>%
+  left_join(data.frame(cell = rownames(df2), pseudo_full = df2$pseudo_full),
+            by = "cell")
+
+
+# lineage 
+lineage_map <- c(
+  "#FF0000FF" = 0,
+  "#CC00FFFF" = 1,
+  "#CCFF00FF" = 2
+)
+
+
+# lineage cells
+df <- df_all %>%
+  filter(phase %in% names(lineage_map)) %>%
+  mutate(phase_num = lineage_map[phase])
+
+
+calc_spearman <- function(pseudo, phase){
+  abs(cor(pseudo, phase, method = "spearman", use = "complete.obs"))
+}
+
+# lineage 
+res <- data.frame(
+  Method = c("scVelo", "Site", "Full"),
+  Spearman = c(
+    calc_spearman(df$pseudo_scvelo, df$phase_num),
+    calc_spearman(df$pseudo_site, df$phase_num),
+    calc_spearman(df$pseudo_full, df$phase_num)
+  )
+)
+
+
+print(res)
+```
+
+
+### random select 100 time (pseudo time compare real time)
+```{r warning=FALSE}
+library(utils)
+library(ggplot2)
+library(dplyr)
+# ================= 1. 数据加载 =================
+scRNA_seq_1_exp_latent_umap <- read.csv(
+  "D:/data/VeloRM_data/scVelo/scRNA-seq_1/results/scRNA_seq_1_exp_latent_umap.csv"
+)
+
+diffusion_density_plot <- readRDS("D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/diffusion_density_plot.rds")
+
+diffusion_density_plot_list <- readRDS(
+  "D:/data/VeloRM_data/scRNA-Seq_A-to-I_1/results/diffusion_density_plot_list.rds"
+)
+
+# ================= 2. 工具函数 =================
+norm01 <- function(x){
+  (x - min(x, na.rm=TRUE)) / (max(x, na.rm=TRUE) - min(x, na.rm=TRUE))
+}
+
+calc_spearman <- function(pseudo, phase){
+  abs(cor(pseudo, phase, method = "spearman", use = "complete.obs"))
+}
+
+# ================= 3. meta 处理 =================
+meta <- scRNA_seq_1_exp_latent_umap %>%
+  mutate(cell = X,
+         pseudo_scvelo = norm01(latent_time))
+
+# lineage mapping
+lineage_map <- c(
+  "#FF0000FF" = 0,
+  "#CC00FFFF" = 1,
+  "#CCFF00FF" = 2
+)
+
+meta <- meta %>%
+  filter(phase %in% names(lineage_map)) %>%
+  mutate(phase_num = lineage_map[phase])
+
+# ================= 4. 计算 100 次 random spearman =================
+spearman_random <- sapply(diffusion_density_plot_list, function(obj){
+
+  df_tmp <- obj[["data"]]
+
+  # pseudo time
+  df_tmp$pseudo <- norm01(df_tmp$density)
+
+  # join
+  df_merge <- meta %>%
+    left_join(
+      data.frame(cell = rownames(df_tmp), pseudo = df_tmp$pseudo),
+      by = "cell"
+    )
+
+  # 计算 spearman
+  calc_spearman(df_merge$pseudo, df_merge$phase_num)
+})
+
+# ================= 5. 整理结果 =================
+res_random <- data.frame(
+  Iteration = 1:length(spearman_random),
+  Spearman = spearman_random
+)
+
+# summary
+summary_res <- data.frame(
+  Mean = mean(spearman_random, na.rm = TRUE),
+  SD   = sd(spearman_random, na.rm = TRUE),
+  Max  = max(spearman_random, na.rm = TRUE),
+  Min  = min(spearman_random, na.rm = TRUE)
+)
+
+print(res_random)
+print(summary_res)
+
+# ================= 6. baseline Spearman =================
+df_origin <- diffusion_density_plot[["data"]]
+
+# pseudo time
+df_origin$pseudo <- norm01(df_origin$density)
+
+# merge
+df_origin_merge <- meta %>%
+  left_join(
+    data.frame(cell = rownames(df_origin), pseudo = df_origin$pseudo),
+    by = "cell"
+  )
+
+# Spearman
+spearman_origin <- calc_spearman(df_origin_merge$pseudo, df_origin_merge$phase_num)
+
+print(paste("Baseline Spearman:", spearman_origin))
+
+
+# ================= 7. 合并数据 =================
+plot_df <- res_random %>%
+  mutate(Type = "Random")
+
+baseline_df <- data.frame(
+  Iteration = NA,
+  Spearman = spearman_origin,
+  Type = "Origin"
+)
+
+plot_all <- bind_rows(plot_df, baseline_df)
+
+
+
+
+method_levels <- c("Random", "Site", "Full", "scVelo")
+
+# Random
+random_df <- res_random %>%
+  mutate(Method = factor("Random", levels = method_levels)) %>%
+  dplyr::select(Method, Spearman)
+
+# 三个方法
+res <- res %>%
+  mutate(Method = factor(Method, levels = method_levels))
+
+# 合并数据（统一格式）
+df_res <- bind_rows(
+  res %>% dplyr::rename(Score = Spearman),
+  random_df %>% dplyr::rename(Score = Spearman)
+)
+
+# 确保顺序
+df_res$Method <- factor(df_res$Method,
+                        levels = c("Random", "Site", "Full", "scVelo"))
+
+# 颜色（和你原来一致）
+my_colors <- c(
+  "scVelo" = "#4DAF4A",
+  "Site"   = "#E41A1C",
+  "Full"   = "#377EB8"
+)
+
+# 作图
+p_stats <- ggplot(df_res, aes(x = Method, y = Score, fill = Method)) +
+  
+  # --- Random：box + jitter ---
+  geom_boxplot(
+    data = dplyr::filter(df_res, Method == "Random"),
+    alpha = 0.5,
+    width = 0.4,
+    outlier.shape = NA,
+    fill = "grey80"
+  ) +
+  
+  geom_jitter(
+    data = dplyr::filter(df_res, Method == "Random"),
+    width = 0.12,
+    size = 0.8,
+    alpha = 0.4,
+    color = "grey40"
+  ) +
+  
+  # --- 其他方法：bar ---
+  geom_col(
+    data = dplyr::filter(df_res, Method != "Random"),
+    width = 0.6
+  ) +
+  
+  # --- 数值标签 ---
+  geom_text(
+    data = dplyr::filter(df_res, Method != "Random"),
+    aes(label = sprintf("%.3f", Score)),
+    vjust = -0.6,
+    size = 4,
+    fontface = "bold"
+  ) +
+  
+  # --- 主题 ---
+  theme_classic() +
+  scale_fill_manual(values = my_colors) +
+  
+  labs(
+    title = "Spearman Correlation Comparison",
+    subtitle = paste0("Random N=", nrow(random_df)),
+    x = "",
+    y = "Spearman Correlation"
+  ) +
+  
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(face = "bold", size = 10, angle = 30, hjust = 1)
+  ) +
+  
+  # 防止文字被截断
+  expand_limits(y = max(df_res$Score) * 1.1)
+
+p_stats
+```

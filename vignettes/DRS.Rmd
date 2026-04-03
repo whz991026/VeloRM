@@ -1,0 +1,318 @@
+---
+title: "DRS"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{DRS}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(VeloRM)
+```
+## DRS
+### data download
+https://www.ncbi.nlm.nih.gov/geo/query/GSE132971 
+### alignment and divide
+```{bash eval=FALSE}
+#!/bin/bash
+#SBATCH --qos=cpu6348
+#SBATCH --partition=cpu6348
+#SBATCH --ntasks=1
+#SBATCH -J ont_m6a_pipeline
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=64G
+#SBATCH -e %J.error
+#SBATCH --output=%j.out
+
+set -e
+set -o pipefail
+
+ml anaconda3
+module load minimap2
+module load samtools
+module load bedtools2
+
+THREADS=8
+
+############################################
+# paths
+############################################
+
+FASTQ=/gpfs/work/bio/haozhewang17/data/zhixing/minimap2/HEK293WT/fastq.tar.gz
+
+GENOME_REF=/gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+
+CDNA_REF=/gpfs/work/bio/haozhewang17/data/zhixing/minimap2/Homo_sapiens.GRCh38.cdna.all.fa
+
+OUTDIR="/gpfs/work/bio/haozhewang17/data/zhixing/minimap2/HEK293WT/new_version"
+
+INTRON_BED=/gpfs/work/bio/haozhewang17/data/VeloRM_2/hg38_bed/intron-na.bed
+
+############################################
+# 1. Genome mapping (detect splicing)
+############################################
+
+echo "Step1: Genome alignment"
+
+minimap2 -ax splice -uf -k14 -t $THREADS \
+$GENOME_REF \
+$FASTQ | \
+samtools sort -@ $THREADS -o genome_aligned.bam
+
+samtools index genome_aligned.bam
+
+############################################
+# 2. Split spliced / unspliced reads
+############################################
+
+echo "Step2: Split spliced/unspliced reads"
+
+samtools view -h genome_aligned.bam | \
+awk '(/^@/ || $6 ~ /N/)' | \
+samtools view -@ $THREADS -b - > spliced_genome.bam
+
+samtools view -h genome_aligned.bam | \
+awk '(/^@/ || $6 !~ /N/)' | \
+samtools view -@ $THREADS -b - > unspliced_genome.bam
+
+samtools index spliced_genome.bam
+samtools index unspliced_genome.bam
+
+echo " Extract pre-mRNA reads from unspliced_genome.bam"
+
+bedtools intersect \
+-a unspliced_genome.bam \
+-b $INTRON_BED \
+-wa -split | \
+samtools view -@ $THREADS -b - | \
+samtools sort -@ $THREADS -o pre-mRNA.bam
+
+samtools index pre-mRNA.bam
+
+############################################
+# 3. Extract read names
+############################################
+
+echo "Step3: Extract read IDs"
+
+samtools view spliced_genome.bam | cut -f1 | sort | uniq > spliced_reads.txt
+samtools view pre-mRNA.bam | cut -f1 | sort | uniq > pre-mRNA_reads.txt
+
+############################################
+# 4. Transcriptome mapping
+############################################
+
+echo "Step4: Transcriptome alignment"
+
+minimap2 -ax map-ont -t $THREADS \
+$CDNA_REF \
+$FASTQ | \
+samtools sort -@ $THREADS -o cdna_aligned.bam
+
+samtools index cdna_aligned.bam
+
+############################################
+# 5. Split transcriptome BAM
+############################################
+
+echo "Step5: Split transcriptome BAM"
+
+samtools view -@ $THREADS -N spliced_reads.txt -b cdna_aligned.bam \
+| samtools sort -@ $THREADS -o spliced_cdna.bam
+
+samtools index spliced_cdna.bam
+
+samtools view -@ $THREADS -N pre-mRNA_reads.txt -b cdna_aligned.bam \
+| samtools sort -@ $THREADS -o pre-mRNA_cdna.bam
+
+samtools index pre-mRNA_cdna.bam
+############################################
+# 6. Report statistics
+############################################
+
+echo "Step6: Statistics"
+
+echo "Spliced reads:"
+samtools view -c spliced_cdna.bam
+
+echo "pre-mRNA reads:"
+samtools view -c pre-mRNA_cdna.bam
+
+echo "Pipeline finished!"
+
+```
+### m6A net
+```{bash eval=FALSE}
+#!/bin/bash
+#SBATCH --qos=cpu6348
+#SBATCH --partition=cpu6348
+#SBATCH --ntasks=1
+#SBATCH -J ont_m6a_pipeline
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=64G
+#SBATCH -e %J.error
+#SBATCH --output=%j.out
+
+############################################
+# paths
+############################################
+
+BASE="/gpfs/work/bio/haozhewang17/data/zhixing/minimap2/HEK293WT/new_version"
+
+RESULTS="${BASE}/results"
+
+############################################
+# env
+############################################
+source /gpfs/work/bio/haozhewang17/anaconda3/etc/profile.d/conda.sh
+conda activate /gpfs/work/bio/yuxinzhang17/environment/.conda/envs/m6anet-env
+
+
+############################################
+# spliced dataprep
+############################################
+
+echo "spliced dataprep"
+
+m6anet dataprep \
+--eventalign ${RESULTS}/spliced.eventalign.txt \
+--out_dir ${RESULTS}/spliced \
+--n_processes 6
+
+############################################
+# spliced inference
+############################################
+
+m6anet inference \
+--input_dir ${RESULTS}/spliced \
+--out_dir ${RESULTS}/spliced \
+--n_processes 2
+
+
+
+############################################
+# pre-mRNA dataprep
+############################################
+
+echo "pre-mRNA dataprep"
+
+m6anet dataprep \
+--eventalign ${RESULTS}/pre-mRNA.eventalign.txt \
+--out_dir ${RESULTS}/pre-mRNA \
+--n_processes 6
+
+############################################
+# unspliced inference
+############################################
+
+m6anet inference \
+--input_dir ${RESULTS}/pre-mRNA \
+--out_dir ${RESULTS}/pre-mRNA \
+--n_processes 2
+
+echo "m6anet finished"
+
+```
+
+### vis
+```{r warning=FALSE}
+
+library(GenomicRanges)
+
+mRNA_HEK <- read.csv("D:/data/VeloRM_data/DRS/data.site_proba_pre_mRNA.csv")
+mRNA_gr_pre_mRNA <- GRanges(seqnames = mRNA_HEK$transcript_id,
+                   IRanges(start = mRNA_HEK$transcript_position+1,width = 1),
+                   strand = "+",
+                   prob = mRNA_HEK$probability_modified,
+                   count = mRNA_HEK$mod_ratio*mRNA_HEK$n_reads,
+                   coverage = mRNA_HEK$n_reads)
+mRNA_gr_pre_mRNA$methylation <- mRNA_HEK$mod_ratio
+
+
+mRNA_HEK <- read.csv("D:/data/VeloRM_data/DRS/data.site_proba_spliced.csv")
+mRNA_gr_spliced <- GRanges(seqnames = mRNA_HEK$transcript_id,
+                   IRanges(start = mRNA_HEK$transcript_position+1,width = 1),
+                   strand = "+",
+                   prob = mRNA_HEK$probability_modified,
+                   count = mRNA_HEK$mod_ratio*mRNA_HEK$n_reads,
+                   coverage = mRNA_HEK$n_reads)
+mRNA_gr_spliced$methylation <- mRNA_HEK$mod_ratio
+
+
+pre_high <- mRNA_gr_pre_mRNA[mRNA_gr_pre_mRNA$prob > 0.9]
+spliced_high <- mRNA_gr_spliced[mRNA_gr_spliced$prob > 0.9]
+
+hits <- findOverlaps(pre_high, spliced_high)  # pre_high vs spliced_high
+
+
+n_intersect <- length(unique(queryHits(hits)))  #  subjectHits(hits)
+n_pre_only <- length(pre_high) - n_intersect
+n_spliced_only <- length(spliced_high) - n_intersect
+
+library(VennDiagram)
+
+venn.plot <- draw.pairwise.venn(
+  area1 = length(pre_high),
+  area2 = length(spliced_high),
+  cross.area = n_intersect,
+  category = c("pre-splicing", "post-splicing"),
+  fill = c("skyblue", "#F1948A"),
+  alpha = 0.5,
+  cat.pos = c(-20, 20),
+  cex = 1.5,
+  cat.cex = 1.2,
+  lwd = 1.5
+)
+grid.newpage()
+grid.draw(venn.plot)
+###############################overlap########################################
+
+hits <- findOverlaps(mRNA_gr_spliced, mRNA_gr_pre_mRNA)
+
+spliced_idx <- queryHits(hits)
+pre_idx <- subjectHits(hits)
+
+spliced_prob <- mRNA_gr_spliced$prob[spliced_idx]
+pre_prob <- mRNA_gr_pre_mRNA$prob[pre_idx]
+
+keep <- spliced_prob > 0.9 & pre_prob > 0.9
+spliced_cov <- mRNA_gr_spliced$coverage[spliced_idx]
+pre_cov <- mRNA_gr_pre_mRNA$coverage[pre_idx]
+
+keep <- keep & spliced_cov >= 20 & pre_cov >= 20
+
+
+spliced_meth <- mRNA_gr_spliced$methylation[spliced_idx][keep]
+pre_meth <- mRNA_gr_pre_mRNA$methylation[pre_idx][keep]
+
+
+df <- data.frame(
+  methylation = c(pre_meth, spliced_meth),
+  type = rep(c("pre-splicing","post-splicing"), each = length(pre_meth))
+)
+
+library(ggplot2)
+
+ggplot(df, aes(x = type, y = methylation, fill = type)) +
+  geom_boxplot(width = 0.3, outlier.shape = NA) + 
+  ylab("m6A methylation level") +
+  xlab("") +
+  scale_fill_manual(values = c("pre-splicing" = "skyblue", "post-splicing" = "#F1948A")) +
+  theme(legend.position = "none") 
+
+ggplot(df, aes(x=methylation, fill=type)) +
+  geom_density(alpha=0.3) +
+  scale_fill_manual(values = c("pre-splicing" = "skyblue", "post-splicing" = "#F1948A"))+
+  xlab("m6A methylation level")
+
+t.test(pre_meth, spliced_meth, alternative =  "greater",paired=TRUE)
+
+
+```
