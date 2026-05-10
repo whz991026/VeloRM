@@ -22,6 +22,8 @@ methylation.site.relative.velocity.estimates(
   zero.offset = FALSE,
   deltaT2 = 1,
   delta_model = "model 2",
+  beta_m = 1,
+  beta_w = 1,
   fit.quantile = NULL,
   diagonal.quantiles = FALSE,
   show.site = NULL,
@@ -106,6 +108,10 @@ methylation.site.relative.velocity.estimates(
 }}
 
 \item{delta_model}{estimate the delat use model 1 or model 2}
+
+\item{beta_m}{methylated splicing rate, set to 1 by default.}
+
+\item{beta_w}{non-methylated splicing rate, set to 1 by default.}
 
 \item{fit.quantile}{perform gamma fit on a top/bottom quantiles of expression magnitudes}
 

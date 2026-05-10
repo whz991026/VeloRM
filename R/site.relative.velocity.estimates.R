@@ -15,6 +15,7 @@
 ##' @param zero.offset - should offset be set to zero
 ##' @param deltaT2 - scaling of the projected difference vector (normally should be set to 1)
 ##' @param delta_model estimate the delat use model 1 or model 2
+##' @param beta splicing rate, set to 1 by default. 
 ##' @param fit.quantile perform gamma fit on a top/bottom quantiles of expression magnitudes
 ##' @param diagonal.quantiles whether extreme quantiles should be computed diagonally
 ##' @param show.site an optional name of a site for which the velocity estimation details should be shown (instead of estimating all velocities)
@@ -47,7 +48,7 @@ site.relative.velocity.estimates <- function (
         emat, nmat, deltaT = 1, steady.state.cells = colnames(emat),
         kCells = 10, cellKNN = NULL, kSites = 1, siteKNN = NULL, old.fit = NULL,
         mult = 1000, min.nmat.emat.correlation = 0.05,
-        min.nmat.emat.slope = 0.05, zero.offset = FALSE, deltaT2 = 1,delta_model="model 2",
+        min.nmat.emat.slope = 0.05, zero.offset = FALSE, deltaT2 = 1,delta_model="model 2",beta=1,
         fit.quantile = NULL, diagonal.quantiles = FALSE, show.site = NULL,
         cell.dist = NULL, emat.size = NULL, nmat.size = NULL,
         cell.emb = NULL, cell.colors = NULL, expression.gradient = NULL,
@@ -385,12 +386,12 @@ site.relative.velocity.estimates <- function (
   if (delta_model=="model 1"){
     cat("calculating delta use model 1 ... ")
     deltaE <- t.get.projected.delta.model1(conv.emat.norm, conv.nmat.norm,
-                                    gamma, offset = offset, delta = deltaT)
+                                    gamma, offset = offset, delta = deltaT,beta=beta)
   }
   if (delta_model=="model 2"){
     cat("calculating delta use model 2 ... ")
     deltaE <- t.get.projected.delta.model2(conv.emat.norm, conv.nmat.norm,
-                                    gamma, offset = offset, delta = deltaT)
+                                    gamma, offset = offset, delta = deltaT,beta=beta)
   }
 
   resl$gamma <- gamma

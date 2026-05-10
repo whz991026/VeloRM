@@ -17,6 +17,8 @@
 ##' @param zero.offset - should offset be set to zero
 ##' @param deltaT2 - scaling of the projected difference vector (normally should be set to 1)
 ##' @param delta_model estimate the delat use model 1 or model 2
+##' @param beta_m methylated splicing rate, set to 1 by default. 
+##' @param beta_w non-methylated splicing rate, set to 1 by default. 
 ##' @param fit.quantile perform gamma fit on a top/bottom quantiles of expression magnitudes
 ##' @param diagonal.quantiles whether extreme quantiles should be computed diagonally
 ##' @param show.site an optional name of a site for which the velocity estimation details should be shown (instead of estimating all velocities)
@@ -51,7 +53,7 @@ methylation.site.relative.velocity.estimates <- function (
     control_size=NULL,
     kCells = 5, cellKNN = NULL, kSites = 1, siteKNN = NULL, old.fit = NULL,
     mult = 1000, min.nmat.emat.correlation = 0.05,p_value=TRUE,
-    min.nmat.emat.slope = 0.05, zero.offset = FALSE, deltaT2 = 1,delta_model="model 2",
+    min.nmat.emat.slope = 0.05, zero.offset = FALSE, deltaT2 = 1,delta_model="model 2",beta_m=1,beta_w=1,
     fit.quantile = NULL, diagonal.quantiles = FALSE, show.site = NULL,
     cell.dist = NULL, emat.size = NULL, nmat.size = NULL,
     cell.emb = NULL, cell.colors = NULL, expression.gradient = NULL,
@@ -110,7 +112,7 @@ methylation.site.relative.velocity.estimates <- function (
   meth_result <- site.relative.velocity.estimates(emat = spliced.meth.test, nmat = unspliced.meth.test, deltaT = deltaT, steady.state.cells = colnames(spliced.meth.test),
                                                   kCells = kCells, cellKNN = cellKNN, kSites = kSites, siteKNN = siteKNN, old.fit = old.fit,
                                                   mult = mult, min.nmat.emat.correlation = min.nmat.emat.correlation,
-                                                  min.nmat.emat.slope = min.nmat.emat.slope, zero.offset = zero.offset, deltaT2 = deltaT2,delta_model=delta_model,
+                                                  min.nmat.emat.slope = min.nmat.emat.slope, zero.offset = zero.offset, deltaT2 = deltaT2,beta = beta_m, delta_model=delta_model,
                                                   fit.quantile = fit.quantile, diagonal.quantiles = diagonal.quantiles, show.site = show.site,
                                                   cell.dist = cell.dist, emat.size = emat.size, nmat.size = nmat.size,
                                                   cell.emb = cell.emb, cell.colors = cell.colors, expression.gradient = expression.gradient,
@@ -120,7 +122,7 @@ methylation.site.relative.velocity.estimates <- function (
   unmeth_result <- site.relative.velocity.estimates(emat = spliced.unmeth.test, nmat = unspliced.unmeth.test, deltaT = deltaT, steady.state.cells = colnames(spliced.unmeth.test),
                                                   kCells = kCells, cellKNN = cellKNN, kSites = kSites, siteKNN = siteKNN, old.fit = old.fit,
                                                   mult = mult, min.nmat.emat.correlation = min.nmat.emat.correlation,
-                                                  min.nmat.emat.slope = min.nmat.emat.slope, zero.offset = zero.offset, deltaT2 = deltaT2,delta_model=delta_model,
+                                                  min.nmat.emat.slope = min.nmat.emat.slope, zero.offset = zero.offset, deltaT2 = deltaT2,beta = beta_w,delta_model=delta_model,
                                                   fit.quantile = fit.quantile, diagonal.quantiles = diagonal.quantiles, show.site = show.site,
                                                   cell.dist = cell.dist, emat.size = emat.size, nmat.size = nmat.size,
                                                   cell.emb = cell.emb, cell.colors = cell.colors, expression.gradient = expression.gradient,

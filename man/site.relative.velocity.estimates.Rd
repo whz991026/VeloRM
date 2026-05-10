@@ -20,6 +20,7 @@ site.relative.velocity.estimates(
   zero.offset = FALSE,
   deltaT2 = 1,
   delta_model = "model 2",
+  beta = 1,
   fit.quantile = NULL,
   diagonal.quantiles = FALSE,
   show.site = NULL,
@@ -96,6 +97,8 @@ site.relative.velocity.estimates(
 }}
 
 \item{delta_model}{estimate the delat use model 1 or model 2}
+
+\item{beta}{splicing rate, set to 1 by default.}
 
 \item{fit.quantile}{perform gamma fit on a top/bottom quantiles of expression magnitudes}
 

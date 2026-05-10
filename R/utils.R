@@ -45,33 +45,35 @@ sizeFactor <- function(data, narm=FALSE) {
 
 # estimate projected delta under model 1
 #
-# @param em  normalized expression matrix
+# @param em  normalized spliced matrix
 # @param nm normalized nascent matrix
 # @param gamma inferred degradation coefficients
 # @param offset inferred offset (assumed to be zero by default)
 # @param delta time to project forward
+# @param beta splicing rate, set to 1 by default. 
 #
 # @return the delta spliced read count matrix
-t.get.projected.delta.model1 <- function(em,nm,gamma,offset=rep(0,length(gamma)),delta=0.5) {
+t.get.projected.delta.model1 <- function(em,nm,gamma,offset=rep(0,length(gamma)),delta=0.5,beta=1) {
   # adjust rownames
   gn <- intersect(names(gamma),rownames(em));
   if(is.null(names(offset))) { names(offset) <- names(gamma); }
   em <- em[gn,]; nm <- nm[gn,]; gamma <- gamma[gn]; offset <- offset[gn];
   
-  y <- (nm-offset - gamma*em)*delta
+  y <- (beta*nm-offset - gamma*em)*delta
 }
 
 
 # estimate projected delta under model 2
 #
-# @param em  normalized expression matrix
+# @param em  normalized spliced matrix
 # @param nm normalized nascent matrix
 # @param gamma inferred degradation coefficients
 # @param offset inferred offset (assumed to be zero by default)
 # @param delta time to project forward
+# @param beta splicing rate, set to 1 by default. 
 #
 # @return the delta spliced read count matrix
-t.get.projected.delta.model2 <- function(em,nm,gamma,offset=rep(0,length(gamma)),delta=0.5) {
+t.get.projected.delta.model2 <- function(em,nm,gamma,offset=rep(0,length(gamma)),delta=0.5,beta=1) {
   # adjust rownames
   gn <- intersect(names(gamma),rownames(em));
   if(is.null(names(offset))) { names(offset) <- names(gamma); }
@@ -79,7 +81,7 @@ t.get.projected.delta.model2 <- function(em,nm,gamma,offset=rep(0,length(gamma))
   # time effect constant
   egt <- exp(-gamma*delta);
   y <- nm-offset; y[y<0] <- 0; # zero out entries with a negative n levels after offset adjustment
-  em*egt + (1-egt)*y/gamma  - em
+  em*egt + (1-egt)*beta*y/gamma  - em
 }
 
 
